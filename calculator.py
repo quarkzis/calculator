@@ -4,14 +4,13 @@ import plotly.express as px
 
 # Page configuration
 st.set_page_config(
-    page_title="Due Diligence Budget Calculator",
+    page_title="EUDR Due Diligence Costs Calculator",
     page_icon="💼",
     layout="wide"
 )
 
 # Main title
-st.title("Due Diligence Budget Calculator")
-st.markdown("This application calculates the budget for establishing and maintaining a due diligence system based on various factors.")
+st.title("EUDR Due Diligence Costs Calculator")
 
 # Primary filter: Setup vs Ongoing costs
 cost_type = st.radio(
@@ -46,12 +45,12 @@ ongoing_tasks = [
 # Define positions and their daily rates
 st.header("Daily Rates by Position")
 daily_rates = {
-    "SO": st.number_input("Sustainability Officer (€/day)", min_value=0, value=600, step=50),
-    "LAW": st.number_input("Lawyer (€/day)", min_value=0, value=800, step=50),
-    "PM": st.number_input("Procurement/Technical Manager (€/day)", min_value=0, value=700, step=50),
-    "AA": st.number_input("Administrative Assistant (€/day)", min_value=0, value=300, step=50),
-    "IT": st.number_input("IT Professional (€/day)", min_value=0, value=500, step=50),
-    "EC": st.number_input("External Consultant (€/day)", min_value=0, value=1000, step=50),
+    "SO": st.number_input("Sustainability Officer (£/day)", min_value=0, value=600, step=50),
+    "LAW": st.number_input("Lawyer (£/day)", min_value=0, value=800, step=50),
+    "PM": st.number_input("Procurement/Technical Manager (£/day)", min_value=0, value=700, step=50),
+    "AA": st.number_input("Administrative Assistant (£/day)", min_value=0, value=300, step=50),
+    "IT": st.number_input("IT Professional (£/day)", min_value=0, value=500, step=50),
+    "EC": st.number_input("External Consultant (£/day)", min_value=0, value=1000, step=50),
 }
 
 # Adjust visible tasks based on selected cost type
@@ -163,7 +162,7 @@ with col1:
     }
     dd_compliance = st.selectbox("Select compliance level", list(dd_compliance_types.keys()))
     dd_compliance_factor = dd_compliance_types[dd_compliance]
-
+    
     # Source country
     st.subheader("Risk Level in Source Country")
     risk_types = {
@@ -218,8 +217,8 @@ for task_code, task_data in task_assignments.items():
                 "Task": task_name,
                 "Position": position,
                 "Work Days": positions[position],
-                "Daily Rate (€)": daily_rates[position],
-                "Cost (€)": cost,
+                "Daily Rate (£)": daily_rates[position],
+                "Cost (£)": cost,
                 "Category": task_categories[task_code]
             })
 
@@ -232,7 +231,7 @@ for task_code in task_totals:
         "Task Code": task_code,
         "Task": task_assignments[task_code]["name"],
         "Category": task_categories[task_code],
-        "Total Cost (€)": task_totals[task_code]
+        "Total Cost (£)": task_totals[task_code]
     })
 
 task_summary_df = pd.DataFrame(task_summary)
@@ -242,7 +241,7 @@ position_summary = []
 for position in position_totals:
     position_summary.append({
         "Position": position,
-        "Total Cost (€)": position_totals[position]
+        "Total Cost (£)": position_totals[position]
     })
 
 position_summary_df = pd.DataFrame(position_summary)
@@ -256,9 +255,6 @@ with col1:
     
     st.subheader("Task Summary")
     st.dataframe(task_summary_df, use_container_width=True)
-    
-    # Show total base cost
-    st.metric("Total Base Cost", f"€{total_base_cost:,.2f}")
     
     # Show applied factors
     factors_data = [
@@ -274,9 +270,9 @@ with col1:
 with col2:
     # Position summary pie chart
     fig1 = px.pie(
-        position_summary_df, 
-        values="Total Cost (€)", 
-        names="Position", 
+        position_summary_df,
+        values="Total Cost (£)",
+        names="Position",
         title="Cost Distribution by Position",
         color_discrete_sequence=px.colors.qualitative.Bold
     )
@@ -286,10 +282,10 @@ with col2:
     fig2 = px.bar(
         task_summary_df,
         x="Task Code",
-        y="Total Cost (€)",
-        color="Category",
+        y="Total Cost (£)",
         title="Cost Distribution by Task",
         hover_data=["Task"],
+        color="Category",
         color_discrete_map={"SET UP COSTS": "#1f77b4", "ON-GOING COSTS": "#ff7f0e"},
         category_orders={"Category": ["SET UP COSTS", "ON-GOING COSTS"]}
     )
@@ -297,12 +293,12 @@ with col2:
     st.plotly_chart(fig2, use_container_width=True)
     
     # Create category summary
-    category_summary = task_summary_df.groupby('Category')['Total Cost (€)'].sum().reset_index()
+    category_summary = task_summary_df.groupby('Category')['Total Cost (£)'].sum().reset_index()
     
     # Create category pie chart
     fig3 = px.pie(
         category_summary,
-        values="Total Cost (€)",
+        values="Total Cost (£)",
         names="Category",
         title="Cost Distribution by Category",
         color="Category",
@@ -310,10 +306,15 @@ with col2:
     )
     st.plotly_chart(fig3, use_container_width=True)
 
-    # Show final adjusted cost
+# Show total costs in a more organized way
+st.header("Cost Summary")
+col1, col2 = st.columns(2)
+with col1:
+    st.metric("Total Base Cost (Before Adjustments)", f"£{total_base_cost:,.2f}")
+with col2:
     st.metric(
         "Final Adjusted Cost", 
-        f"€{adjusted_cost:,.2f}", 
+        f"£{adjusted_cost:,.2f}", 
         delta=f"{((adjusted_cost/total_base_cost)-1)*100:.1f}%" if total_base_cost > 0 else "0%"
     )
 
@@ -322,22 +323,22 @@ st.header("Detailed Calculation Breakdown")
 with st.expander("View detailed calculation breakdown"):
     st.markdown(f"""
     ### Base Cost
-    - **Total Base Cost**: €{total_base_cost:,.2f}
+    - **Total Base Cost**: £{total_base_cost:,.2f}
     
     ### Sequential Factor Application
-    1. **Base Cost**: €{total_base_cost:,.2f}
-    2. **Company Type Adjustment** ({company_type}): €{total_base_cost:,.2f} × {company_factor:.2f} = €{adjusted_cost_step1:,.2f}
-    3. **Compliance Adjustment** ({dd_compliance}): €{adjusted_cost_step1:,.2f} × {dd_compliance_factor:.2f} = €{adjusted_cost_step2:,.2f}
-    4. **Complexity Adjustment** ({supply_chain}): €{adjusted_cost_step2:,.2f} × {supply_chain_factor:.2f} = €{adjusted_cost_step3:,.2f}
-    5. **Commodities Adjustment** ({commodity_count}): €{adjusted_cost_step3:,.2f} × {commodity_factor:.2f} = €{adjusted_cost_step4:,.2f}
-    6. **Country Risk Adjustment** ({risk_type}): €{adjusted_cost_step4:,.2f} × (1 + {risk_factor:.2f}) = €{adjusted_cost:,.2f}
+    1. **Base Cost**: £{total_base_cost:,.2f}
+    2. **Company Type Adjustment** ({company_type}): £{total_base_cost:,.2f} × {company_factor:.2f} = £{adjusted_cost_step1:,.2f}
+    3. **Compliance Adjustment** ({dd_compliance}): £{adjusted_cost_step1:,.2f} × {dd_compliance_factor:.2f} = £{adjusted_cost_step2:,.2f}
+    4. **Complexity Adjustment** ({supply_chain}): £{adjusted_cost_step2:,.2f} × {supply_chain_factor:.2f} = £{adjusted_cost_step3:,.2f}
+    5. **Commodities Adjustment** ({commodity_count}): £{adjusted_cost_step3:,.2f} × {commodity_factor:.2f} = £{adjusted_cost_step4:,.2f}
+    6. **Country Risk Adjustment** ({risk_type}): £{adjusted_cost_step4:,.2f} × (1 + {risk_factor:.2f}) = £{adjusted_cost:,.2f}
     
-    ### Final Adjusted Cost: €{adjusted_cost:,.2f}
+    ### Final Adjusted Cost: £{adjusted_cost:,.2f}
     """)
-    
-    # Show detailed task breakdown
-    st.subheader("Detailed Task Breakdown")
-    st.dataframe(detailed_df, use_container_width=True)
+
+# Show detailed task breakdown
+st.subheader("Detailed Task Breakdown")
+st.dataframe(detailed_df, use_container_width=True)
 
 # Add section to download results
 st.header("Download Results")
@@ -347,24 +348,24 @@ def create_download_data():
     # Create a dictionary of DataFrames
     data = {
         "Summary": pd.DataFrame([
-            {"Information": f"Calculation Date", "Value": f"{pd.Timestamp.now().strftime('%Y-%m-%d')}"},
-            {"Information": f"Cost Type", "Value": cost_type},
-            {"Information": f"Total Base Cost", "Value": f"€{total_base_cost:,.2f}"},
-            {"Information": f"Final Adjusted Cost", "Value": f"€{adjusted_cost:,.2f}"}
+            {"Information": "Calculation Date", "Value": f"{pd.Timestamp.now().strftime('%Y-%m-%d')}"},
+            {"Information": "Cost Type", "Value": cost_type},
+            {"Information": "Total Base Cost (Before Adjustments)", "Value": f"£{total_base_cost:,.2f}"},
+            {"Information": "Final Adjusted Cost", "Value": f"£{adjusted_cost:,.2f}"}
         ]),
-        "Detailed_Costs": detailed_df,
-        "Task_Summary": task_summary_df,
-        "Category_Summary": category_summary,
-        "Position_Summary": position_summary_df,
         "Applied_Factors": pd.DataFrame(factors_data),
         "Calculation_Steps": pd.DataFrame([
-            {"Step": "Base Cost", "Value": f"€{total_base_cost:,.2f}"},
-            {"Step": f"Company Type Adjustment ({company_type})", "Value": f"€{adjusted_cost_step1:,.2f}"},
-            {"Step": f"Compliance Adjustment ({dd_compliance})", "Value": f"€{adjusted_cost_step2:,.2f}"},
-            {"Step": f"Complexity Adjustment ({supply_chain})", "Value": f"€{adjusted_cost_step3:,.2f}"},
-            {"Step": f"Commodities Adjustment ({commodity_count})", "Value": f"€{adjusted_cost_step4:,.2f}"},
-            {"Step": f"Country Risk Adjustment ({risk_type})", "Value": f"€{adjusted_cost:,.2f}"}
-        ])
+            {"Step": "Base Cost", "Value": f"£{total_base_cost:,.2f}"},
+            {"Step": f"Company Type Adjustment ({company_type})", "Value": f"£{adjusted_cost_step1:,.2f}"},
+            {"Step": f"Compliance Adjustment ({dd_compliance})", "Value": f"£{adjusted_cost_step2:,.2f}"},
+            {"Step": f"Complexity Adjustment ({supply_chain})", "Value": f"£{adjusted_cost_step3:,.2f}"},
+            {"Step": f"Commodities Adjustment ({commodity_count})", "Value": f"£{adjusted_cost_step4:,.2f}"},
+            {"Step": f"Country Risk Adjustment ({risk_type})", "Value": f"£{adjusted_cost:,.2f}"}
+        ]),
+        "Detailed_Costs": detailed_df,
+        "Task_Summary": task_summary_df, 
+        "Category_Summary": category_summary,
+        "Position_Summary": position_summary_df
     }
     return data
 
@@ -372,31 +373,50 @@ def create_download_data():
 if st.button("Generate CSV Report"):
     data = create_download_data()
     
-    # Create a list of DataFrames with spaces between them
-    dfs = []
-    dfs.append(data["Summary"])
-    dfs.append(pd.DataFrame({"": [""]}))  # Space
-    dfs.append(data["Detailed_Costs"])
-    dfs.append(pd.DataFrame({"": [""]}))  # Space
-    dfs.append(data["Task_Summary"])
-    dfs.append(pd.DataFrame({"": [""]}))  # Space
-    dfs.append(data["Category_Summary"])
-    dfs.append(pd.DataFrame({"": [""]}))  # Space
-    dfs.append(data["Position_Summary"])
-    dfs.append(pd.DataFrame({"": [""]}))  # Space
-    dfs.append(data["Applied_Factors"])
-    dfs.append(pd.DataFrame({"": [""]}))  # Space
-    dfs.append(data["Calculation_Steps"])
+    # Create Excel-style sheets in a single CSV by adding headers and separating sections
+    sections = []
     
-    # Concatenate into a single DataFrame
-    report_df = pd.concat(dfs, axis=0)
+    # Summary section
+    sections.append("===== SUMMARY =====")
+    sections.append(data["Summary"].to_csv(index=False))
+    sections.append("\n")
     
-    # Convert to CSV for download
-    csv = report_df.to_csv(index=False)
+    # Factors section
+    sections.append("===== APPLIED FACTORS =====")
+    sections.append(data["Applied_Factors"].to_csv(index=False))
+    sections.append("\n")
+    
+    # Calculation steps section
+    sections.append("===== CALCULATION STEPS =====")
+    sections.append(data["Calculation_Steps"].to_csv(index=False))
+    sections.append("\n")
+    
+    # Category summary section
+    sections.append("===== CATEGORY SUMMARY =====")
+    sections.append(data["Category_Summary"].to_csv(index=False))
+    sections.append("\n")
+    
+    # Position summary section
+    sections.append("===== POSITION SUMMARY =====")
+    sections.append(data["Position_Summary"].to_csv(index=False))
+    sections.append("\n")
+    
+    # Task summary section
+    sections.append("===== TASK SUMMARY =====")
+    sections.append(data["Task_Summary"].to_csv(index=False))
+    sections.append("\n")
+    
+    # Detailed costs section
+    sections.append("===== DETAILED COSTS =====")
+    sections.append(data["Detailed_Costs"].to_csv(index=False))
+    
+    # Join all sections
+    csv_content = "\n".join(sections)
+    
     st.download_button(
         label="Download CSV Report",
-        data=csv,
-        file_name=f"due_diligence_budget_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
+        data=csv_content,
+        file_name=f"eudr_due_diligence_budget_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
         mime="text/csv",
     )
 
