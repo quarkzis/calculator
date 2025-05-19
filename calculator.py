@@ -142,7 +142,9 @@ col1, col2 = st.columns(2)
 with col1:
     # Company type
     st.subheader("Company Type")
-    company_types = {
+    
+    # Default company types and factors
+    default_company_types = {
         "Upstream operator (non-SME)": 1.00,
         "Upstream operator (SME)": 0.66,
         "Downstream operator (non-SME)": 0.75,
@@ -150,48 +152,110 @@ with col1:
         "Trader (non-SME)": 0.75,
         "Trader (SME)": 0.50,
     }
-    company_type = st.selectbox("Select company type", list(company_types.keys()))
-    company_factor = company_types[company_type]
+    
+    company_type = st.selectbox("Select company type", list(default_company_types.keys()))
+    default_factor = default_company_types[company_type]
+    
+    # Add ability to edit the factor
+    company_factor = st.number_input(
+        "Company type factor (adjust if needed)",
+        min_value=0.0, 
+        max_value=5.0, 
+        value=default_factor, 
+        step=0.01,
+        format="%.2f",
+        key="company_factor"
+    )
     
     # Due diligence compliance
     st.subheader("Due Diligence Compliance")
-    dd_compliance_types = {
+    
+    default_dd_compliance_types = {
         "No due diligence": 1.00,
         "Partial due diligence": 0.25,
         "Full due diligence": 0.75,
     }
-    dd_compliance = st.selectbox("Select compliance level", list(dd_compliance_types.keys()))
-    dd_compliance_factor = dd_compliance_types[dd_compliance]
+    
+    dd_compliance = st.selectbox("Select compliance level", list(default_dd_compliance_types.keys()))
+    default_dd_factor = default_dd_compliance_types[dd_compliance]
+    
+    # Add ability to edit the factor
+    dd_compliance_factor = st.number_input(
+        "Due diligence factor (adjust if needed)",
+        min_value=0.0, 
+        max_value=5.0, 
+        value=default_dd_factor, 
+        step=0.01,
+        format="%.2f",
+        key="dd_factor"
+    )
     
     # Source country
     st.subheader("Risk Level in Source Country")
-    risk_types = {
+    
+    default_risk_types = {
         "Low risk country": 0.00,
         "High/Standard risk country": 1.00,
     }
-    risk_type = st.selectbox("Select risk level", list(risk_types.keys()))
-    risk_factor = risk_types[risk_type]
+    
+    risk_type = st.selectbox("Select risk level", list(default_risk_types.keys()))
+    default_risk_factor = default_risk_types[risk_type]
+    
+    # Add ability to edit the factor
+    risk_factor = st.number_input(
+        "Country risk factor (adjust if needed)",
+        min_value=0.0, 
+        max_value=5.0, 
+        value=default_risk_factor, 
+        step=0.01,
+        format="%.2f",
+        key="risk_factor"
+    )
 
 with col2:
     # Supply chain complexity
     st.subheader("Supply Chain Complexity")
-    supply_chain_types = {
+    
+    default_supply_chain_types = {
         "Simple supply chain": 0.75,
         "Standard supply chain": 1.00,
         "Complex supply chain": 2.00,
     }
-    supply_chain = st.selectbox("Select complexity", list(supply_chain_types.keys()))
-    supply_chain_factor = supply_chain_types[supply_chain]
+    
+    supply_chain = st.selectbox("Select complexity", list(default_supply_chain_types.keys()))
+    default_supply_chain_factor = default_supply_chain_types[supply_chain]
+    
+    # Add ability to edit the factor
+    supply_chain_factor = st.number_input(
+        "Supply chain factor (adjust if needed)",
+        min_value=0.0, 
+        max_value=5.0, 
+        value=default_supply_chain_factor, 
+        step=0.01,
+        format="%.2f",
+        key="supply_chain_factor"
+    )
     
     # Quantity of commodities
     st.subheader("Quantity of Commodities")
     commodity_count = st.slider("Select number of commodities", min_value=1, max_value=10, value=1, step=1)
     
-    # Calculate factor based on commodity count
+    # Calculate default factor based on commodity count
     if commodity_count == 1:
-        commodity_factor = 1.00
+        default_commodity_factor = 1.00
     else:
-        commodity_factor = 1.00 + 0.25 * (commodity_count - 1)
+        default_commodity_factor = 1.00 + 0.25 * (commodity_count - 1)
+    
+    # Add ability to edit the factor
+    commodity_factor = st.number_input(
+        "Commodity factor (adjust if needed)",
+        min_value=0.0, 
+        max_value=5.0, 
+        value=default_commodity_factor, 
+        step=0.01,
+        format="%.2f",
+        key="commodity_factor"
+    )
 
 # Calculate the final adjusted cost sequentially
 adjusted_cost_step1 = total_base_cost * company_factor
