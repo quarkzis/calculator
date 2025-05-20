@@ -15,7 +15,7 @@ st.title("EUDR Due Diligence Costs Calculator")
 # Primary filter: Setup vs Ongoing costs
 cost_type = st.radio(
     "Select Cost Type",
-    ["SET UP COSTS", "ON-GOING COSTS", "BOTH"],
+    ["SET UP COSTS", "ON-GOING COSTS", "BOTH COSTS"],
     horizontal=True
 )
 
