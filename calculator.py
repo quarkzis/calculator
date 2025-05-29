@@ -652,17 +652,14 @@ with col2:
 
 # Show total costs in a more organized way
 st.header("Cost Summary")
-col1, col2, col3 = st.columns(3)
+col1, col2 = st.columns(2)
 with col1:
     st.metric("Total Base Cost (Before Adjustments)", f"£{total_base_cost:,.2f}")
 with col2:
-    st.metric("After Company Type Adjustment", f"£{total_after_company_adjustment:,.2f}", 
-              delta=f"{((total_after_company_adjustment/total_base_cost)-1)*100:.1f}%" if total_base_cost > 0 else "0%")
-with col3:
     st.metric(
         "Final Adjusted Cost", 
         f"£{final_adjusted_cost:,.2f}", 
-        delta=f"{((final_adjusted_cost/total_after_company_adjustment)-1)*100:.1f}%" if total_after_company_adjustment > 0 else "0%"
+        delta=f"{((final_adjusted_cost/total_base_cost)-1)*100:.1f}%" if total_base_cost > 0 else "0%"
     )
 
 # Detailed breakdown
