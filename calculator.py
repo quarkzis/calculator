@@ -32,7 +32,8 @@ setup_tasks = [
             "Downstream operator (SME)": 0.50,
             "Trader (non-SME)": 0.75,
             "Trader (SME)": 0.25
-        }
+        },
+        "low_risk_factor": 0.0  # Added low risk factor for each task
     },
     {
         "code": "S2", 
@@ -45,7 +46,8 @@ setup_tasks = [
             "Downstream operator (SME)": 0.50,
             "Trader (non-SME)": 0.75,
             "Trader (SME)": 0.25
-        }
+        },
+        "low_risk_factor": 0.0
     },
     {
         "code": "S3", 
@@ -58,7 +60,8 @@ setup_tasks = [
             "Downstream operator (SME)": 0.50,
             "Trader (non-SME)": 0.75,
             "Trader (SME)": 0.25
-        }
+        },
+        "low_risk_factor": 0.0
     },
     {
         "code": "S4", 
@@ -71,7 +74,8 @@ setup_tasks = [
             "Downstream operator (SME)": 0.50,
             "Trader (non-SME)": 0.75,
             "Trader (SME)": 0.25
-        }
+        },
+        "low_risk_factor": 1.0
     },
     {
         "code": "S5", 
@@ -84,7 +88,8 @@ setup_tasks = [
             "Downstream operator (SME)": 0.50,
             "Trader (non-SME)": 0.75,
             "Trader (SME)": 0.25
-        }
+        },
+        "low_risk_factor": 1.0
     },
     {
         "code": "S6", 
@@ -97,7 +102,8 @@ setup_tasks = [
             "Downstream operator (SME)": 0.50,
             "Trader (non-SME)": 0.50,
             "Trader (SME)": 0.25
-        }
+        },
+        "low_risk_factor": 0.0
     },
     {
         "code": "S7", 
@@ -110,7 +116,8 @@ setup_tasks = [
             "Downstream operator (SME)": 0.50,
             "Trader (non-SME)": 0.50,
             "Trader (SME)": 0.25
-        }
+        },
+        "low_risk_factor": 0.0
     },
     {
         "code": "S8", 
@@ -123,7 +130,8 @@ setup_tasks = [
             "Downstream operator (SME)": 0.00,
             "Trader (non-SME)": 1.00,
             "Trader (SME)": 1.00
-        }
+        },
+        "low_risk_factor": 0.0
     }
 ]
 
@@ -139,7 +147,8 @@ ongoing_tasks = [
             "Downstream operator (SME)": 0.50,
             "Trader (non-SME)": 0.75,
             "Trader (SME)": 0.25
-        }
+        },
+        "low_risk_factor": 0.0
     },
     {
         "code": "O2", 
@@ -152,7 +161,8 @@ ongoing_tasks = [
             "Downstream operator (SME)": 0.50,
             "Trader (non-SME)": 0.75,
             "Trader (SME)": 0.25
-        }
+        },
+        "low_risk_factor": 0.0
     },
     {
         "code": "O3", 
@@ -165,7 +175,8 @@ ongoing_tasks = [
             "Downstream operator (SME)": 0.50,
             "Trader (non-SME)": 0.75,
             "Trader (SME)": 0.25
-        }
+        },
+        "low_risk_factor": 0.0
     },
     {
         "code": "O4", 
@@ -178,7 +189,8 @@ ongoing_tasks = [
             "Downstream operator (SME)": 0.50,
             "Trader (non-SME)": 0.50,
             "Trader (SME)": 0.25
-        }
+        },
+        "low_risk_factor": 0.0
     },
     {
         "code": "O5", 
@@ -191,7 +203,8 @@ ongoing_tasks = [
             "Downstream operator (SME)": 0.50,
             "Trader (non-SME)": 0.50,
             "Trader (SME)": 0.25
-        }
+        },
+        "low_risk_factor": 1.0
     },
     {
         "code": "O6", 
@@ -204,7 +217,8 @@ ongoing_tasks = [
             "Downstream operator (SME)": 0.50,
             "Trader (non-SME)": 0.50,
             "Trader (SME)": 0.25
-        }
+        },
+        "low_risk_factor": 1.0
     },
     {
         "code": "O7", 
@@ -217,7 +231,8 @@ ongoing_tasks = [
             "Downstream operator (SME)": 0.00,
             "Trader (non-SME)": 1.00,
             "Trader (SME)": 0.00
-        }
+        },
+        "low_risk_factor": 1.0
     },
     {
         "code": "O8", 
@@ -230,7 +245,8 @@ ongoing_tasks = [
             "Downstream operator (SME)": 0.00,
             "Trader (non-SME)": 1.00,
             "Trader (SME)": 0.00
-        }
+        },
+        "low_risk_factor": 1.0
     }
 ]
 
@@ -272,7 +288,8 @@ def create_task_assignment(tasks, task_prefix):
         task_assignments[task_code] = {
             "name": task_name,
             "positions": {},
-            "company_type_factors": task.get("company_type_factors", {})
+            "company_type_factors": task.get("company_type_factors", {}),
+            "low_risk_factor": task.get("low_risk_factor", 1.0)  # Store the task-specific low risk factor
         }
         
         for i, position in enumerate(["SO", "LAW", "PM", "AA", "IT", "EC"]):
@@ -364,8 +381,8 @@ with col1:
     
     default_dd_compliance_types = {
         "No due diligence": {"setup": 1.00, "ongoing": 1.00},
-        "Partial due diligence": {"setup": 0.30, "ongoing": 0.30},
-        "Full due diligence": {"setup": 0.75, "ongoing": 0.50},  # Different factors for setup vs ongoing
+        "Partial due diligence": {"setup": 0.66, "ongoing": 0.66},
+        "Full due diligence": {"setup": 0.25, "ongoing": 0.50},  # Different factors for setup vs ongoing
     }
     
     dd_compliance = st.selectbox("Select compliance level", list(default_dd_compliance_types.keys()))
@@ -427,6 +444,22 @@ with col2:
     supply_chain = st.selectbox("Select complexity", list(default_supply_chain_types.keys()))
     default_supply_chain_factor = default_supply_chain_types[supply_chain]
     
+    # Add slider for "Age of application in years" if ON-GOING COSTS and Simple supply chain
+    age_of_application_factor = 0.75  # default
+    if cost_type in ["ON-GOING COSTS", "BOTH COSTS"] and supply_chain == "Simple supply chain":
+        age_of_application = st.slider(
+            "Age of application in years (for Simple supply chain only)",
+            min_value=1, 
+            max_value=10, 
+            value=1, 
+            step=1
+        )
+        if age_of_application >= 3:
+            age_of_application_factor = 0.65
+        else:
+            age_of_application_factor = 0.75
+        default_supply_chain_factor = age_of_application_factor
+    
     # Add ability to edit the factor
     supply_chain_factor = st.number_input(
         "Supply chain factor (adjust if needed)",
@@ -471,6 +504,7 @@ for task_code, task_data in task_assignments.items():
     task_name = task_data["name"]
     positions = task_data["positions"]
     company_factors = task_data["company_type_factors"]
+    task_low_risk_factor = task_data.get("low_risk_factor", 1.0)  # Get task-specific low risk factor
     
     base_costs_by_task_position[task_code] = {}
     task_total = 0
@@ -489,7 +523,15 @@ for task_code, task_data in task_assignments.items():
         task_total += cost
     
     task_totals[task_code] = task_total
-    adjusted_task_totals[task_code] = task_total * company_factor
+    
+    # Apply company factor first
+    company_adjusted_cost = task_total * company_factor
+    
+    # Apply task-specific low risk factor if risk type is "Low risk country"
+    if risk_type == "Low risk country":
+        company_adjusted_cost = company_adjusted_cost * task_low_risk_factor
+    
+    adjusted_task_totals[task_code] = company_adjusted_cost
 
 total_base_cost = sum(task_totals.values())
 total_after_company_adjustment = sum(adjusted_task_totals.values())
@@ -518,11 +560,17 @@ for task_code, task_data in task_assignments.items():
     task_name = task_data["name"]
     positions = task_data["positions"]
     company_factor = task_data["company_type_factors"].get(company_type, 1.0)
+    task_low_risk_factor = task_data.get("low_risk_factor", 1.0)
     
     for position in ["SO", "LAW", "PM", "AA", "IT", "EC"]:
         if position in positions and positions[position] > 0:
             base_cost = positions[position] * daily_rates[position]
-            adjusted_cost = base_cost * company_factor
+            company_adjusted_cost = base_cost * company_factor
+            
+            # Apply task-specific low risk factor if needed
+            if risk_type == "Low risk country":
+                company_adjusted_cost = company_adjusted_cost * task_low_risk_factor
+                
             detailed_data.append({
                 "Task Code": task_code,
                 "Task": task_name,
@@ -531,7 +579,8 @@ for task_code, task_data in task_assignments.items():
                 "Daily Rate (£)": daily_rates[position],
                 "Base Cost (£)": base_cost,
                 "Company Factor": company_factor,
-                "Adjusted Cost (£)": adjusted_cost,
+                "Low Risk Factor": task_low_risk_factor if risk_type == "Low risk country" else 1.0,
+                "Adjusted Cost (£)": company_adjusted_cost,
                 "Category": task_categories[task_code]
             })
 
@@ -542,13 +591,21 @@ task_summary = []
 for task_code in task_totals:
     if task_totals[task_code] > 0:  # Only include tasks with actual costs
         company_factor = task_assignments[task_code]["company_type_factors"].get(company_type, 1.0)
+        task_low_risk_factor = task_assignments[task_code].get("low_risk_factor", 1.0)
+        
+        # Calculate adjusted cost with both company and low risk factors
+        adjusted_cost = task_totals[task_code] * company_factor
+        if risk_type == "Low risk country":
+            adjusted_cost = adjusted_cost * task_low_risk_factor
+            
         task_summary.append({
             "Task Code": task_code,
             "Task": task_assignments[task_code]["name"],
             "Category": task_categories[task_code],
             "Base Cost (£)": task_totals[task_code],
             "Company Factor": company_factor,
-            "Adjusted Cost (£)": task_totals[task_code] * company_factor
+            "Low Risk Factor": task_low_risk_factor if risk_type == "Low risk country" else 1.0,
+            "Adjusted Cost (£)": adjusted_cost
         })
 
 task_summary_df = pd.DataFrame(task_summary)
@@ -625,7 +682,7 @@ with col2:
             x="Task Code",
             y="Adjusted Cost (£)",
             title="Adjusted Cost Distribution by Task",
-            hover_data=["Task", "Base Cost (£)", "Company Factor"],
+            hover_data=["Task", "Base Cost (£)", "Company Factor", "Low Risk Factor"],
             color="Category",
             color_discrete_map={"SET UP COSTS": "#1f77b4", "ON-GOING COSTS": "#ff7f0e"},
             category_orders={"Category": ["SET UP COSTS", "ON-GOING COSTS"]}
@@ -668,11 +725,15 @@ with st.expander("View detailed calculation breakdown"):
     st.markdown(f"""
     ### Base Cost
     - **Total Base Cost**: £{total_base_cost:,.2f}
-    - **Setup Costs**: £{setup_cost_after_company :,.2f}
+    - **Setup Costs**: £{setup_cost_after_company:,.2f}
     - **Ongoing Costs**: £{ongoing_cost_after_company:,.2f}
     
     ### Company Type Adjustment (per task)
     - **After Company Type Adjustment**: £{total_after_company_adjustment:,.2f}
+    
+    ### Task-Specific Low Risk Adjustment (if applicable)
+    - **Risk Type**: {risk_type}
+    - **Task-specific factors applied**: {'Yes' if risk_type == 'Low risk country' else 'No'}
     
     ### Sequential Factor Application
     1. **Due Diligence Compliance Adjustment** ({dd_compliance}):
