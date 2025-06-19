@@ -33,7 +33,7 @@ setup_tasks = [
             "Trader (non-SME)": 0.75,
             "Trader (SME)": 0.25
         },
-        "low_risk_factor": 0.0  # Added low risk factor for each task
+        "risk_factor": 0.0
     },
     {
         "code": "S2", 
@@ -47,7 +47,7 @@ setup_tasks = [
             "Trader (non-SME)": 0.75,
             "Trader (SME)": 0.25
         },
-        "low_risk_factor": 0.0
+        "risk_factor": 0.0
     },
     {
         "code": "S3", 
@@ -61,7 +61,7 @@ setup_tasks = [
             "Trader (non-SME)": 0.75,
             "Trader (SME)": 0.25
         },
-        "low_risk_factor": 0.0
+        "risk_factor": 0.0
     },
     {
         "code": "S4", 
@@ -75,7 +75,7 @@ setup_tasks = [
             "Trader (non-SME)": 0.75,
             "Trader (SME)": 0.25
         },
-        "low_risk_factor": 1.0
+        "risk_factor": 1.0
     },
     {
         "code": "S5", 
@@ -89,7 +89,7 @@ setup_tasks = [
             "Trader (non-SME)": 0.75,
             "Trader (SME)": 0.25
         },
-        "low_risk_factor": 1.0
+        "risk_factor": 1.0
     },
     {
         "code": "S6", 
@@ -103,7 +103,7 @@ setup_tasks = [
             "Trader (non-SME)": 0.50,
             "Trader (SME)": 0.25
         },
-        "low_risk_factor": 0.0
+        "risk_factor": 0.0
     },
     {
         "code": "S7", 
@@ -117,7 +117,7 @@ setup_tasks = [
             "Trader (non-SME)": 0.50,
             "Trader (SME)": 0.25
         },
-        "low_risk_factor": 0.0
+        "risk_factor": 0.0
     },
     {
         "code": "S8", 
@@ -131,7 +131,7 @@ setup_tasks = [
             "Trader (non-SME)": 1.00,
             "Trader (SME)": 1.00
         },
-        "low_risk_factor": 0.0
+        "risk_factor": 0.0
     }
 ]
 
@@ -148,7 +148,7 @@ ongoing_tasks = [
             "Trader (non-SME)": 0.75,
             "Trader (SME)": 0.25
         },
-        "low_risk_factor": 0.0
+        "risk_factor": 0.0
     },
     {
         "code": "O2", 
@@ -162,7 +162,7 @@ ongoing_tasks = [
             "Trader (non-SME)": 0.75,
             "Trader (SME)": 0.25
         },
-        "low_risk_factor": 0.0
+        "risk_factor": 0.0
     },
     {
         "code": "O3", 
@@ -176,7 +176,7 @@ ongoing_tasks = [
             "Trader (non-SME)": 0.75,
             "Trader (SME)": 0.25
         },
-        "low_risk_factor": 0.0
+        "risk_factor": 0.0
     },
     {
         "code": "O4", 
@@ -190,7 +190,7 @@ ongoing_tasks = [
             "Trader (non-SME)": 0.50,
             "Trader (SME)": 0.25
         },
-        "low_risk_factor": 0.0
+        "risk_factor": 0.0
     },
     {
         "code": "O5", 
@@ -204,7 +204,7 @@ ongoing_tasks = [
             "Trader (non-SME)": 0.50,
             "Trader (SME)": 0.25
         },
-        "low_risk_factor": 1.0
+        "risk_factor": 1.0
     },
     {
         "code": "O6", 
@@ -218,7 +218,7 @@ ongoing_tasks = [
             "Trader (non-SME)": 0.50,
             "Trader (SME)": 0.25
         },
-        "low_risk_factor": 1.0
+        "risk_factor": 1.0
     },
     {
         "code": "O7", 
@@ -232,7 +232,7 @@ ongoing_tasks = [
             "Trader (non-SME)": 1.00,
             "Trader (SME)": 0.00
         },
-        "low_risk_factor": 1.0
+        "risk_factor": 1.0
     },
     {
         "code": "O8", 
@@ -246,7 +246,7 @@ ongoing_tasks = [
             "Trader (non-SME)": 1.00,
             "Trader (SME)": 0.00
         },
-        "low_risk_factor": 1.0
+        "risk_factor": 1.0
     }
 ]
 
@@ -289,7 +289,7 @@ def create_task_assignment(tasks, task_prefix):
             "name": task_name,
             "positions": {},
             "company_type_factors": task.get("company_type_factors", {}),
-            "low_risk_factor": task.get("low_risk_factor", 1.0)  # Store the task-specific low risk factor
+            "risk_factor": task.get("risk_factor", 1.0)
         }
         
         for i, position in enumerate(["SO", "LAW", "PM", "AA", "IT", "EC"]):
@@ -334,6 +334,9 @@ company_type = st.selectbox(
         "Trader (SME)"
     ]
 )
+
+# Show task-specific factors message
+st.info("Task-specific factors will be applied")
 
 # Business size discount (only applicable to SME companies)
 business_size_discount = 1.0  # Default for non-SME companies
@@ -411,25 +414,11 @@ with col1:
     
     # Source country
     st.subheader("Risk Level in Source Country")
-    
-    default_risk_types = {
-        "Low risk country": 0.50,
-        "High/Standard risk country": 1.00,
-    }
-    
-    risk_type = st.selectbox("Select risk level", list(default_risk_types.keys()))
-    default_risk_factor = default_risk_types[risk_type]
-    
-    # Add ability to edit the factor
-    risk_factor = st.number_input(
-        "Country risk factor (adjust if needed)",
-        min_value=0.0, 
-        max_value=5.0, 
-        value=default_risk_factor, 
-        step=0.01,
-        format="%.2f",
-        key="risk_factor"
-    )
+    risk_type = st.radio("Select risk level", 
+                        ["Low risk country", "High/Standard risk country"],
+                        horizontal=True)
+    # Show task-specific factors message
+    st.info("Task-specific factors will be applied")
 
 with col2:
     # Supply chain complexity
@@ -504,7 +493,12 @@ for task_code, task_data in task_assignments.items():
     task_name = task_data["name"]
     positions = task_data["positions"]
     company_factors = task_data["company_type_factors"]
-    task_low_risk_factor = task_data.get("low_risk_factor", 1.0)  # Get task-specific low risk factor
+    
+    # Determine risk factor based on selection
+    if risk_type == "Low risk country":
+        task_risk_factor = task_data.get("risk_factor", 1.0)  # Use task-specific factor
+    else:
+        task_risk_factor = 1.0  # Force 1.0 for High/Standard risk country
     
     base_costs_by_task_position[task_code] = {}
     task_total = 0
@@ -524,35 +518,29 @@ for task_code, task_data in task_assignments.items():
     
     task_totals[task_code] = task_total
     
-    # Apply company factor first
-    company_adjusted_cost = task_total * company_factor
-    
-    # Apply task-specific low risk factor if risk type is "Low risk country"
-    if risk_type == "Low risk country":
-        company_adjusted_cost = company_adjusted_cost * task_low_risk_factor
-    
-    adjusted_task_totals[task_code] = company_adjusted_cost
+    # Apply both company factor and risk factor together
+    company_and_risk_adjusted_cost = task_total * company_factor * task_risk_factor
+    adjusted_task_totals[task_code] = company_and_risk_adjusted_cost
 
 total_base_cost = sum(task_totals.values())
-total_after_company_adjustment = sum(adjusted_task_totals.values())
+total_after_adjustments = sum(adjusted_task_totals.values())
 
 # Calculate the final adjusted cost sequentially
-# First separate setup and ongoing costs from company-adjusted totals
-setup_cost_after_company = sum([adjusted_task_totals[code] for code in adjusted_task_totals if code.startswith("S")])
-ongoing_cost_after_company = sum([adjusted_task_totals[code] for code in adjusted_task_totals if code.startswith("O")])
+# First separate setup and ongoing costs from adjusted totals
+setup_cost_after_adjustments = sum([adjusted_task_totals[code] for code in adjusted_task_totals if code.startswith("S")])
+ongoing_cost_after_adjustments = sum([adjusted_task_totals[code] for code in adjusted_task_totals if code.startswith("O")])
 
-# Apply due diligence factors (these are applied after company type adjustments)
-adjusted_setup_after_dd = setup_cost_after_company * dd_setup_factor
-adjusted_ongoing_after_dd = ongoing_cost_after_company * dd_ongoing_factor
+# Apply due diligence factors (these are applied after company and risk adjustments)
+adjusted_setup_after_dd = setup_cost_after_adjustments * dd_setup_factor
+adjusted_ongoing_after_dd = ongoing_cost_after_adjustments * dd_ongoing_factor
 adjusted_cost_after_dd = adjusted_setup_after_dd + adjusted_ongoing_after_dd
 
 # Apply other factors (same for all costs)
 adjusted_cost_after_supply_chain = adjusted_cost_after_dd * supply_chain_factor
 adjusted_cost_after_commodity = adjusted_cost_after_supply_chain * commodity_factor
-adjusted_cost_after_risk = adjusted_cost_after_commodity * risk_factor
 
 # Apply business size discount (only for SME companies)
-final_adjusted_cost = adjusted_cost_after_risk * business_size_discount
+final_adjusted_cost = adjusted_cost_after_commodity * business_size_discount
 
 # Create detailed cost breakdown by task and position
 detailed_data = []
@@ -560,16 +548,17 @@ for task_code, task_data in task_assignments.items():
     task_name = task_data["name"]
     positions = task_data["positions"]
     company_factor = task_data["company_type_factors"].get(company_type, 1.0)
-    task_low_risk_factor = task_data.get("low_risk_factor", 1.0)
+    
+    # Determine risk factor based on selection
+    if risk_type == "Low risk country":
+        task_risk_factor = task_data.get("risk_factor", 1.0)  # Use task-specific factor
+    else:
+        task_risk_factor = 1.0  # Force 1.0 for High/Standard risk country
     
     for position in ["SO", "LAW", "PM", "AA", "IT", "EC"]:
         if position in positions and positions[position] > 0:
             base_cost = positions[position] * daily_rates[position]
-            company_adjusted_cost = base_cost * company_factor
-            
-            # Apply task-specific low risk factor if needed
-            if risk_type == "Low risk country":
-                company_adjusted_cost = company_adjusted_cost * task_low_risk_factor
+            adjusted_cost = base_cost * company_factor * task_risk_factor
                 
             detailed_data.append({
                 "Task Code": task_code,
@@ -579,8 +568,8 @@ for task_code, task_data in task_assignments.items():
                 "Daily Rate (£)": daily_rates[position],
                 "Base Cost (£)": base_cost,
                 "Company Factor": company_factor,
-                "Low Risk Factor": task_low_risk_factor if risk_type == "Low risk country" else 1.0,
-                "Adjusted Cost (£)": company_adjusted_cost,
+                "Risk Factor": task_risk_factor,
+                "Adjusted Cost (£)": adjusted_cost,
                 "Category": task_categories[task_code]
             })
 
@@ -591,12 +580,15 @@ task_summary = []
 for task_code in task_totals:
     if task_totals[task_code] > 0:  # Only include tasks with actual costs
         company_factor = task_assignments[task_code]["company_type_factors"].get(company_type, 1.0)
-        task_low_risk_factor = task_assignments[task_code].get("low_risk_factor", 1.0)
         
-        # Calculate adjusted cost with both company and low risk factors
-        adjusted_cost = task_totals[task_code] * company_factor
+        # Determine risk factor based on selection
         if risk_type == "Low risk country":
-            adjusted_cost = adjusted_cost * task_low_risk_factor
+            task_risk_factor = task_assignments[task_code].get("risk_factor", 1.0)  # Use task-specific factor
+        else:
+            task_risk_factor = 1.0  # Force 1.0 for High/Standard risk country
+            
+        # Calculate adjusted cost with both company and risk factors
+        adjusted_cost = task_totals[task_code] * company_factor * task_risk_factor
             
         task_summary.append({
             "Task Code": task_code,
@@ -604,7 +596,7 @@ for task_code in task_totals:
             "Category": task_categories[task_code],
             "Base Cost (£)": task_totals[task_code],
             "Company Factor": company_factor,
-            "Low Risk Factor": task_low_risk_factor if risk_type == "Low risk country" else 1.0,
+            "Risk Factor": task_risk_factor,
             "Adjusted Cost (£)": adjusted_cost
         })
 
@@ -654,7 +646,7 @@ with col1:
         {"Factor": "Due Diligence Compliance", "Setup Value": f"{dd_setup_factor:.2f}", "Ongoing Value": f"{dd_ongoing_factor:.2f}", "Description": dd_compliance},
         {"Factor": "Supply Chain Complexity", "Setup Value": f"{supply_chain_factor:.2f}", "Ongoing Value": f"{supply_chain_factor:.2f}", "Description": supply_chain},
         {"Factor": "Commodity Count", "Setup Value": f"{commodity_factor:.2f}", "Ongoing Value": f"{commodity_factor:.2f}", "Description": f"{commodity_count} commodities"},
-        {"Factor": "Country Risk Level", "Setup Value": f"{risk_factor:.2f}", "Ongoing Value": f"{risk_factor:.2f}", "Description": risk_type},
+        {"Factor": "Country Risk Level", "Setup Value": "Task-specific" if risk_type == "Low risk country" else "1.00", "Ongoing Value": "Task-specific" if risk_type == "Low risk country" else "1.00", "Description": risk_type},
         {"Factor": "Business Size Discount", "Setup Value": f"{business_size_discount:.2f}", "Ongoing Value": f"{business_size_discount:.2f}", "Description": "Applied to SME companies only"},
     ]
     factors_df = pd.DataFrame(factors_data)
@@ -682,7 +674,7 @@ with col2:
             x="Task Code",
             y="Adjusted Cost (£)",
             title="Adjusted Cost Distribution by Task",
-            hover_data=["Task", "Base Cost (£)", "Company Factor", "Low Risk Factor"],
+            hover_data=["Task", "Base Cost (£)", "Company Factor", "Risk Factor"],
             color="Category",
             color_discrete_map={"SET UP COSTS": "#1f77b4", "ON-GOING COSTS": "#ff7f0e"},
             category_orders={"Category": ["SET UP COSTS", "ON-GOING COSTS"]}
@@ -725,26 +717,21 @@ with st.expander("View detailed calculation breakdown"):
     st.markdown(f"""
     ### Base Cost
     - **Total Base Cost**: £{total_base_cost:,.2f}
-    - **Setup Costs**: £{setup_cost_after_company:,.2f}
-    - **Ongoing Costs**: £{ongoing_cost_after_company:,.2f}
-    
-    ### Company Type Adjustment (per task)
-    - **After Company Type Adjustment**: £{total_after_company_adjustment:,.2f}
-    
-    ### Task-Specific Low Risk Adjustment (if applicable)
-    - **Risk Type**: {risk_type}
-    - **Task-specific factors applied**: {'Yes' if risk_type == 'Low risk country' else 'No'}
-    
+    - **Setup Costs**: £{sum([task_totals[code] for code in task_totals if code.startswith('S')]):,.2f}
+    - **Ongoing Costs**: £{sum([task_totals[code] for code in task_totals if code.startswith('O')]):,.2f}
+
+    ### Company Type and Risk Level Adjustment (per task)
+    - **After Adjustments**: £{total_after_adjustments:,.2f}
+
     ### Sequential Factor Application
     1. **Due Diligence Compliance Adjustment** ({dd_compliance}):
-       - Setup: £{setup_cost_after_company:,.2f} × {dd_setup_factor:.2f} = £{adjusted_setup_after_dd:,.2f}
-       - Ongoing: £{ongoing_cost_after_company:,.2f} × {dd_ongoing_factor:.2f} = £{adjusted_ongoing_after_dd:,.2f}
+       - Setup: £{setup_cost_after_adjustments:,.2f} × {dd_setup_factor:.2f} = £{adjusted_setup_after_dd:,.2f}
+       - Ongoing: £{ongoing_cost_after_adjustments:,.2f} × {dd_ongoing_factor:.2f} = £{adjusted_ongoing_after_dd:,.2f}
        - **Subtotal**: £{adjusted_cost_after_dd:,.2f}
     2. **Supply Chain Complexity Adjustment** ({supply_chain}): £{adjusted_cost_after_dd:,.2f} × {supply_chain_factor:.2f} = £{adjusted_cost_after_supply_chain:,.2f}
     3. **Commodities Adjustment** ({commodity_count}): £{adjusted_cost_after_supply_chain:,.2f} × {commodity_factor:.2f} = £{adjusted_cost_after_commodity:,.2f}
-    4. **Country Risk Adjustment** ({risk_type}): £{adjusted_cost_after_commodity:,.2f} × {risk_factor:.2f} = £{adjusted_cost_after_risk:,.2f}
-    5. **Business Size Discount**: £{adjusted_cost_after_risk:,.2f} × {business_size_discount:.2f} = £{final_adjusted_cost:,.2f}
-    
+    4. **Business Size Discount**: £{adjusted_cost_after_commodity:,.2f} × {business_size_discount:.2f} = £{final_adjusted_cost:,.2f}
+
     ### Final Adjusted Cost: £{final_adjusted_cost:,.2f}
     """)
 
@@ -766,11 +753,10 @@ def create_download_data():
         "Applied_Factors": pd.DataFrame(factors_data),
         "Calculation_Steps": pd.DataFrame([
             {"Step": "Base Cost", "Value": f"£{total_base_cost:,.2f}"},
-            {"Step": "After Company Type Adjustment", "Value": f"£{total_after_company_adjustment:,.2f}"},
+            {"Step": "After Company and Risk Adjustment", "Value": f"£{total_after_adjustments:,.2f}"},
             {"Step": f"Due Diligence Compliance Adjustment ({dd_compliance})", "Value": f"£{adjusted_cost_after_dd:,.2f}"},
             {"Step": f"Supply Chain Complexity Adjustment ({supply_chain})", "Value": f"£{adjusted_cost_after_supply_chain:,.2f}"},
             {"Step": f"Commodities Adjustment ({commodity_count})", "Value": f"£{adjusted_cost_after_commodity:,.2f}"},
-            {"Step": f"Country Risk Adjustment ({risk_type})", "Value": f"£{adjusted_cost_after_risk:,.2f}"},
             {"Step": "Business Size Discount", "Value": f"£{final_adjusted_cost:,.2f}"}
         ]),
         "Detailed_Costs": detailed_df,
