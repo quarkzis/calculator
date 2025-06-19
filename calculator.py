@@ -643,6 +643,7 @@ with col1:
     
     # Show applied factors
     factors_data = [
+        {"Factor": "Company Type", "Setup Value": "Task-specific", "Ongoing Value": "Task-specific", "Description": company_type},
         {"Factor": "Due Diligence Compliance", "Setup Value": f"{dd_setup_factor:.2f}", "Ongoing Value": f"{dd_ongoing_factor:.2f}", "Description": dd_compliance},
         {"Factor": "Supply Chain Complexity", "Setup Value": f"{supply_chain_factor:.2f}", "Ongoing Value": f"{supply_chain_factor:.2f}", "Description": supply_chain},
         {"Factor": "Commodity Count", "Setup Value": f"{commodity_factor:.2f}", "Ongoing Value": f"{commodity_factor:.2f}", "Description": f"{commodity_count} commodities"},
@@ -740,12 +741,23 @@ st.header("Download Results")
 
 # Prepare data for download
 def create_download_data():
+    # Create factors data including Company Type as Task-specific
+    factors_data = [
+        {"Factor": "Company Type", "Setup Value": "Task-specific", "Ongoing Value": "Task-specific", "Description": company_type},
+        {"Factor": "Due Diligence Compliance", "Setup Value": f"{dd_setup_factor:.2f}", "Ongoing Value": f"{dd_ongoing_factor:.2f}", "Description": dd_compliance},
+        {"Factor": "Supply Chain Complexity", "Setup Value": f"{supply_chain_factor:.2f}", "Ongoing Value": f"{supply_chain_factor:.2f}", "Description": supply_chain},
+        {"Factor": "Commodity Count", "Setup Value": f"{commodity_factor:.2f}", "Ongoing Value": f"{commodity_factor:.2f}", "Description": f"{commodity_count} commodities"},
+        {"Factor": "Country Risk Level", "Setup Value": "Task-specific" if risk_type == "Low risk country" else "1.00", "Ongoing Value": "Task-specific" if risk_type == "Low risk country" else "1.00", "Description": risk_type},
+        {"Factor": "Business Size Discount", "Setup Value": f"{business_size_discount:.2f}", "Ongoing Value": f"{business_size_discount:.2f}", "Description": "Applied to SME companies only"},
+    ]
+    
     # Create a dictionary of DataFrames
     data = {
         "Summary": pd.DataFrame([
             {"Information": "Calculation Date", "Value": f"{pd.Timestamp.now().strftime('%Y-%m-%d')}"},
             {"Information": "Cost Type", "Value": cost_type},
             {"Information": "Company Type", "Value": company_type},
+            {"Information": "Business Size", "Value": business_size if "(SME)" in company_type else "N/A (non-SME)"},
             {"Information": "Business Size Discount", "Value": f"{business_size_discount:.2f}" if "SME" in company_type else "N/A (non-SME)"},
             {"Information": "Total Base Cost (Before Adjustments)", "Value": f"£{total_base_cost:,.2f}"},
             {"Information": "Final Adjusted Cost", "Value": f"£{final_adjusted_cost:,.2f}"}
@@ -753,16 +765,36 @@ def create_download_data():
         "Applied_Factors": pd.DataFrame(factors_data),
         "Calculation_Steps": pd.DataFrame([
             {"Step": "Base Cost", "Value": f"£{total_base_cost:,.2f}"},
-            {"Step": "After Company and Risk Adjustment", "Value": f"£{total_after_adjustments:,.2f}"},
-            {"Step": f"Due Diligence Compliance Adjustment ({dd_compliance})", "Value": f"£{adjusted_cost_after_dd:,.2f}"},
-            {"Step": f"Supply Chain Complexity Adjustment ({supply_chain})", "Value": f"£{adjusted_cost_after_supply_chain:,.2f}"},
-            {"Step": f"Commodities Adjustment ({commodity_count})", "Value": f"£{adjusted_cost_after_commodity:,.2f}"},
-            {"Step": "Business Size Discount", "Value": f"£{final_adjusted_cost:,.2f}"}
+            {"Step": "After Company and Risk Adjustment", 
+             "Details": f"Applied company-specific and risk factors ({'task-specific' if risk_type == 'Low risk country' else '1.0 for all tasks'})",
+             "Value": f"£{total_after_adjustments:,.2f}"},
+            {"Step": f"Due Diligence Compliance Adjustment ({dd_compliance})", 
+             "Details": f"Setup: {dd_setup_factor:.2f}x, Ongoing: {dd_ongoing_factor:.2f}x",
+             "Value": f"£{adjusted_cost_after_dd:,.2f}"},
+            {"Step": f"Supply Chain Complexity Adjustment ({supply_chain})", 
+             "Details": f"Factor: {supply_chain_factor:.2f}",
+             "Value": f"£{adjusted_cost_after_supply_chain:,.2f}"},
+            {"Step": f"Commodities Adjustment ({commodity_count})", 
+             "Details": f"Factor: {commodity_factor:.2f}",
+             "Value": f"£{adjusted_cost_after_commodity:,.2f}"},
+            {"Step": "Business Size Discount", 
+             "Details": f"Factor: {business_size_discount:.2f}" if "SME" in company_type else "Not applied (non-SME)",
+             "Value": f"£{final_adjusted_cost:,.2f}"}
         ]),
         "Detailed_Costs": detailed_df,
         "Task_Summary": task_summary_df, 
         "Category_Summary": category_summary,
-        "Position_Summary": position_summary_df
+        "Position_Summary": position_summary_df,
+        "Task_Factors": pd.DataFrame([
+            {
+                "Task Code": task["code"],
+                "Task Name": task["name"],
+                "Company Factor": task["company_type_factors"].get(company_type, 1.0),
+                "Risk Factor": task.get("risk_factor", 1.0) if risk_type == "Low risk country" else 1.0,
+                "Risk Type": risk_type
+            }
+            for task in setup_tasks + ongoing_tasks
+        ])
     }
     return data
 
