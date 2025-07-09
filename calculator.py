@@ -24,7 +24,7 @@ setup_tasks = [
     {
         "code": "S1", 
         "name": "Develop detailed EUDR due diligence compliance framework (Art. 12)",
-        "defaults": {"SO": 30.0, "LAW": 5.0, "PM": 0.0, "AA": 0.0, "IT": 0.0, "EC": 3.0},
+        "defaults": {"SO": 30.0, "LAW": 5.0, "PM": 0.0, "AA": 15.0, "IT": 0.0, "EC": 3.0},
         "company_type_factors": {
             "Upstream operator (non-SME)": 1.00,
             "Upstream operator (SME)": 1.00,
@@ -33,12 +33,12 @@ setup_tasks = [
             "Trader (non-SME)": 0.75,
             "Trader (SME)": 0.25
         },
-        "risk_factor": 0.0
+        "risk_factor": 1.0
     },
     {
         "code": "S2", 
         "name": "Establish information/data systems for EUDR compliance (Art. 12)",
-        "defaults": {"SO": 8.0, "LAW": 0.0, "PM": 0.0, "AA": 5.0, "IT": 30.0, "EC": 0.0},
+        "defaults": {"SO": 20.0, "LAW": 0.0, "PM": 0.0, "AA": 5.0, "IT": 30.0, "EC": 0.0},
         "company_type_factors": {
             "Upstream operator (non-SME)": 1.00,
             "Upstream operator (SME)": 1.00,
@@ -47,12 +47,12 @@ setup_tasks = [
             "Trader (non-SME)": 0.75,
             "Trader (SME)": 0.25
         },
-        "risk_factor": 0.0
+        "risk_factor": 1.0
     },
     {
         "code": "S3", 
         "name": "Conduct staff training and ensure sufficient capacity to manage EUDR compliance (Art. 12)",
-        "defaults": {"SO": 10.0, "LAW": 0.0, "PM": 7.0, "AA": 1.5, "IT": 1.5, "EC": 0.0},
+        "defaults": {"SO": 15.0, "LAW": 0.0, "PM": 7.0, "AA": 1.5, "IT": 1.5, "EC": 0.0},
         "company_type_factors": {
             "Upstream operator (non-SME)": 1.00,
             "Upstream operator (SME)": 1.00,
@@ -61,12 +61,12 @@ setup_tasks = [
             "Trader (non-SME)": 0.75,
             "Trader (SME)": 0.25
         },
-        "risk_factor": 0.0
+        "risk_factor": 1.0
     },
     {
         "code": "S4", 
         "name": "Investigate and confirm product scope (HS Codes/ingredients) (Art. 9)",
-        "defaults": {"SO": 3.0, "LAW": 0.0, "PM": 0.0, "AA": 0.0, "IT": 0.0, "EC": 1.0},
+        "defaults": {"SO": 3.0, "LAW": 0.0, "PM": 0.0, "AA": 2.0, "IT": 0.0, "EC": 3.0},
         "company_type_factors": {
             "Upstream operator (non-SME)": 1.00,
             "Upstream operator (SME)": 1.00,
@@ -94,7 +94,7 @@ setup_tasks = [
     {
         "code": "S6", 
         "name": "Conduct initial risk assessments (Art. 10)",
-        "defaults": {"SO": 8.0, "LAW": 0.0, "PM": 5.0, "AA": 0.0, "IT": 0.0, "EC": 2.0},
+        "defaults": {"SO": 8.0, "LAW": 0.0, "PM": 5.0, "AA": 0.0, "IT": 0.0, "EC": 5.0},
         "company_type_factors": {
             "Upstream operator (non-SME)": 1.00,
             "Upstream operator (SME)": 1.00,
@@ -108,7 +108,7 @@ setup_tasks = [
     {
         "code": "S7", 
         "name": "Risk mitigation (Art. 11)",
-        "defaults": {"SO": 16.0, "LAW": 3.0, "PM": 12.0, "AA": 0.0, "IT": 0.0, "EC": 4.0},
+        "defaults": {"SO": 16.0, "LAW": 3.0, "PM": 12.0, "AA": 5.0, "IT": 0.0, "EC": 10.0},
         "company_type_factors": {
             "Upstream operator (non-SME)": 1.00,
             "Upstream operator (SME)": 1.00,
@@ -129,9 +129,9 @@ setup_tasks = [
             "Downstream operator (non-SME)": 1.00,
             "Downstream operator (SME)": 0.00,
             "Trader (non-SME)": 1.00,
-            "Trader (SME)": 1.00
+            "Trader (SME)": 0.00
         },
-        "risk_factor": 0.0
+        "risk_factor": 1.0
     }
 ]
 
@@ -139,7 +139,7 @@ ongoing_tasks = [
     {
         "code": "O1", 
         "name": "Review and update due diligence procedures (Art. 12)",
-        "defaults": {"SO": 5.0, "LAW": 2.0, "PM": 0.0, "AA": 0.0, "IT": 0.0, "EC": 2.0},
+        "defaults": {"SO": 5.0, "LAW": 2.0, "PM": 0.0, "AA": 5.0, "IT": 0.0, "EC": 4.0},
         "company_type_factors": {
             "Upstream operator (non-SME)": 1.00,
             "Upstream operator (SME)": 1.00,
@@ -148,12 +148,12 @@ ongoing_tasks = [
             "Trader (non-SME)": 0.75,
             "Trader (SME)": 0.25
         },
-        "risk_factor": 0.0
+        "risk_factor": 1.0
     },
     {
         "code": "O2", 
         "name": "Review and update IT information data systems (Art. 12)",
-        "defaults": {"SO": 2.0, "LAW": 0.0, "PM": 0.0, "AA": 1.0, "IT": 6.0, "EC": 0.0},
+        "defaults": {"SO": 5.0, "LAW": 0.0, "PM": 0.0, "AA": 3.0, "IT": 6.0, "EC": 0.0},
         "company_type_factors": {
             "Upstream operator (non-SME)": 1.00,
             "Upstream operator (SME)": 1.00,
@@ -162,12 +162,12 @@ ongoing_tasks = [
             "Trader (non-SME)": 0.75,
             "Trader (SME)": 0.25
         },
-        "risk_factor": 0.0
+        "risk_factor": 1.0
     },
     {
         "code": "O3", 
         "name": "Refresher training to existing staff and training to new staff (Art. 12)",
-        "defaults": {"SO": 10.0, "LAW": 0.0, "PM": 7.0, "AA": 1.5, "IT": 1.5, "EC": 0.0},
+        "defaults": {"SO": 15.0, "LAW": 0.0, "PM": 7.0, "AA": 1.5, "IT": 1.5, "EC": 0.0},
         "company_type_factors": {
             "Upstream operator (non-SME)": 1.00,
             "Upstream operator (SME)": 1.00,
@@ -209,7 +209,7 @@ ongoing_tasks = [
     {
         "code": "O6", 
         "name": "Maintain risk mitigation (Art. 11)",
-        "defaults": {"SO": 8.0, "LAW": 0.0, "PM": 7.0, "AA": 0.0, "IT": 0.0, "EC": 0.0},
+        "defaults": {"SO": 12.0, "LAW": 0.0, "PM": 7.0, "AA": 0.0, "IT": 0.0, "EC": 5.0},
         "company_type_factors": {
             "Upstream operator (non-SME)": 1.00,
             "Upstream operator (SME)": 1.00,
@@ -223,7 +223,7 @@ ongoing_tasks = [
     {
         "code": "O7", 
         "name": "Continuously submit DDS for new product batches (Art. 3)",
-        "defaults": {"SO": 2.0, "LAW": 0.0, "PM": 0.0, "AA": 3.0, "IT": 1.0, "EC": 0.0},
+        "defaults": {"SO": 5.0, "LAW": 0.0, "PM": 0.0, "AA": 6.0, "IT": 1.0, "EC": 0.0},
         "company_type_factors": {
             "Upstream operator (non-SME)": 1.00,
             "Upstream operator (SME)": 1.00,
@@ -265,12 +265,12 @@ else:  # BOTH
 # Define positions and their daily rates
 st.header("Daily Rates by Position")
 daily_rates = {
-    "SO": st.number_input("Sustainability Officer (£/day)", min_value=0, value=238, step=1),
-    "LAW": st.number_input("Lawyer (£/day)", min_value=0, value=268, step=1),
-    "PM": st.number_input("Procurement/Technical Manager (£/day)", min_value=0, value=224, step=1),
-    "AA": st.number_input("Administrative Assistant (£/day)", min_value=0, value=152, step=1),
-    "IT": st.number_input("IT Professional (£/day)", min_value=0, value=187, step=1),
-    "EC": st.number_input("External Consultant (£/day)", min_value=0, value=800, step=1),
+    "SO": st.number_input("Sustainability Officer (£/day)", min_value=0.0, value=232.32, step=0.01),
+    "LAW": st.number_input("Lawyer (£/day)", min_value=0.0, value=261.90, step=0.01),
+    "PM": st.number_input("Procurement/Technical Manager (£/day)", min_value=0.0, value=218.80, step=0.01),
+    "AA": st.number_input("Administrative Assistant (£/day)", min_value=0.0, value=148.66, step=0.01),
+    "IT": st.number_input("IT Professional (£/day)", min_value=0.0, value=183.19, step=0.01),
+    "EC": st.number_input("External Consultant (£/day)", min_value=0.0, value=800.00, step=0.01),
 }
 
 # Function to create task assignment UI
@@ -358,7 +358,7 @@ if "(SME)" in company_type:
     elif business_size == "Micro":
         default_business_size_discount = 0.5
     else:  # Medium
-        default_business_size_discount = 1.0
+        default_business_size_discount = 0.9
     
     # Add ability to edit the factor
     business_size_discount = st.number_input(
@@ -384,8 +384,8 @@ with col1:
     
     default_dd_compliance_types = {
         "No due diligence": {"setup": 1.00, "ongoing": 1.00},
-        "Partial due diligence": {"setup": 0.66, "ongoing": 0.66},
-        "Full due diligence": {"setup": 0.25, "ongoing": 0.50},  # Different factors for setup vs ongoing
+        "Partial due diligence": {"setup": 0.75, "ongoing": 0.75},
+        "Full due diligence": {"setup": 0.50, "ongoing": 1.00},  # Different factors for setup vs ongoing
     }
     
     dd_compliance = st.selectbox("Select compliance level", list(default_dd_compliance_types.keys()))
@@ -422,39 +422,21 @@ with col1:
 
 with col2:
     # Supply chain complexity
+# Dentro de la sección "Supply Chain Complexity" (reemplazar el código existente):
     st.subheader("Supply Chain Complexity")
     
     default_supply_chain_types = {
-        "Simple supply chain": 0.75,
+        "Simple supply chain": 0.75,  # Valor fijo para Simple
         "Standard supply chain": 1.00,
         "Complex supply chain": 2.00,
     }
     
     supply_chain = st.selectbox("Select complexity", list(default_supply_chain_types.keys()))
-    default_supply_chain_factor = default_supply_chain_types[supply_chain]
-    
-    # Add slider for "Age of application in years" if ON-GOING COSTS and Simple supply chain
-    age_of_application_factor = 0.75  # default
-    if cost_type in ["ON-GOING COSTS", "BOTH COSTS"] and supply_chain == "Simple supply chain":
-        age_of_application = st.slider(
-            "Age of application in years (for Simple supply chain only)",
-            min_value=1, 
-            max_value=10, 
-            value=1, 
-            step=1
-        )
-        if age_of_application >= 3:
-            age_of_application_factor = 0.65
-        else:
-            age_of_application_factor = 0.75
-        default_supply_chain_factor = age_of_application_factor
-    
-    # Add ability to edit the factor
     supply_chain_factor = st.number_input(
         "Supply chain factor (adjust if needed)",
         min_value=0.0, 
         max_value=5.0, 
-        value=default_supply_chain_factor, 
+        value=default_supply_chain_types[supply_chain],  # Usar directamente el valor del diccionario
         step=0.01,
         format="%.2f",
         key="supply_chain_factor"
@@ -467,8 +449,14 @@ with col2:
     # Calculate default factor based on commodity count
     if commodity_count == 1:
         default_commodity_factor = 1.00
+    elif commodity_count == 2:
+        default_commodity_factor = 1.50
+    elif commodity_count == 3:
+        default_commodity_factor = 1.50
+    elif commodity_count == 4:
+        default_commodity_factor = 1.50
     else:
-        default_commodity_factor = 1.00 + 0.25 * (commodity_count - 1)
+        default_commodity_factor = 2.0
     
     # Add ability to edit the factor
     commodity_factor = st.number_input(
