@@ -10,7 +10,7 @@ st.set_page_config(
 )
 
 # Main title
-st.title("EUDR Due Diligence Costs Calculator")
+st.title("EUDR Due Diligence Costs Calculator (Beta)")
 
 # Primary filter: Setup vs Ongoing costs
 cost_type = st.radio(
