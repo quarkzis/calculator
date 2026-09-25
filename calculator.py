@@ -29,7 +29,7 @@ setup_tasks = [
             "Upstream operator (non-SME)": 1.00,
             "Upstream operator (SME)": 1.00,
             "Downstream operator (non-SME)": 0.75,
-            "Downstream operator (SME)": 0.50,
+            "Downstream operator (SME)": 0.60
             "Trader (non-SME)": 0.75,
             "Trader (SME)": 0.25
         },
