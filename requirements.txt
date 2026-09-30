@@ -3,4 +3,4 @@ streamlit>=1.26.0
 pandas>=2.0.0
 plotly>=5.13.0
 # HTTP client used by the API export prototype
-requests==2.32.3
+requests==2.33.0
