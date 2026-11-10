@@ -1,0 +1,804 @@
+{
+  "source": {
+    "file": "EUDR Phase 2 - ASHE 2026 rates 09112026.xlsx",
+    "sha256": "31869f45951c1f4f4f732067f4f14b4f755be4e40f233dae096edb3b5cb7ad5d",
+    "extracted_from": "formulas, raw inputs and independently verified cached values",
+    "independently_recalculated_formulas": 900
+  },
+  "annual_salaries": {
+    "SO": 46262,
+    "LAW": 50856,
+    "PM": 42871,
+    "AA": 29425,
+    "IT": 36775
+  },
+  "employer_factor": 1.22,
+  "working_days": 220,
+  "consultant_rate": 800,
+  "tasks": {
+    "operator": [
+      {
+        "code": "OP_S1",
+        "name": "Develop detailed EUDR due diligence compliance framework including policies, procedures, standard operating procedures for",
+        "phase": "setup",
+        "days": {
+          "SO": 30,
+          "LAW": 5,
+          "PM": 0,
+          "AA": 15,
+          "IT": 0,
+          "EC": 3
+        },
+        "mechanism": "fixed",
+        "excel_row": 7
+      },
+      {
+        "code": "OP_S2",
+        "name": "Establish information/data systems for EUDR compliance including",
+        "phase": "setup",
+        "days": {
+          "SO": 20,
+          "LAW": 0,
+          "PM": 0,
+          "AA": 5,
+          "IT": 30,
+          "EC": 0
+        },
+        "mechanism": "fixed",
+        "excel_row": 8
+      },
+      {
+        "code": "OP_S3",
+        "name": "Conduct staff training and ensure sufficient capacity to manage EUDR compliance, including",
+        "phase": "setup",
+        "days": {
+          "SO": 15,
+          "LAW": 0,
+          "PM": 7,
+          "AA": 1.5,
+          "IT": 1.5,
+          "EC": 0
+        },
+        "mechanism": "fixed",
+        "excel_row": 9
+      },
+      {
+        "code": "OP_S4",
+        "name": "Investigate and confirm product scope (HS Codes/ingredients)",
+        "phase": "setup",
+        "days": {
+          "SO": 3,
+          "LAW": 0,
+          "PM": 0,
+          "AA": 2,
+          "IT": 0,
+          "EC": 3
+        },
+        "mechanism": "fixed",
+        "excel_row": 10
+      },
+      {
+        "code": "OP_S_INFO",
+        "name": "Article 9 information collection before geolocation is separated",
+        "phase": "setup",
+        "days": {
+          "SO": 20,
+          "LAW": 0,
+          "PM": 20,
+          "AA": 10,
+          "IT": 5,
+          "EC": 5
+        },
+        "mechanism": "information_pool",
+        "excel_row": 11
+      },
+      {
+        "code": "OP_S_GEO",
+        "name": "Geolocation share of Article 9 work",
+        "phase": "setup",
+        "days": {
+          "SO": 10,
+          "LAW": 0,
+          "PM": 9,
+          "AA": 6,
+          "IT": 4,
+          "EC": 4
+        },
+        "mechanism": "geolocation",
+        "excel_row": 12
+      },
+      {
+        "code": "OP_S6",
+        "name": "Conduct initial risk assessments",
+        "phase": "setup",
+        "days": {
+          "SO": 8,
+          "LAW": 0,
+          "PM": 5,
+          "AA": 0,
+          "IT": 0,
+          "EC": 5
+        },
+        "mechanism": "risk",
+        "excel_row": 13
+      },
+      {
+        "code": "OP_S7",
+        "name": "Risk mitigation",
+        "phase": "setup",
+        "days": {
+          "SO": 16,
+          "LAW": 3,
+          "PM": 12,
+          "AA": 5,
+          "IT": 0,
+          "EC": 10
+        },
+        "mechanism": "risk",
+        "excel_row": 14
+      },
+      {
+        "code": "OP_S8",
+        "name": "Submit initial DDS for existing products/batches",
+        "phase": "setup",
+        "days": {
+          "SO": 2,
+          "LAW": 0,
+          "PM": 0,
+          "AA": 3,
+          "IT": 1,
+          "EC": 2
+        },
+        "mechanism": "fixed",
+        "excel_row": 15
+      },
+      {
+        "code": "OP_O1",
+        "name": "Review and update due diligence procedures",
+        "phase": "ongoing",
+        "days": {
+          "SO": 5,
+          "LAW": 2,
+          "PM": 0,
+          "AA": 5,
+          "IT": 0,
+          "EC": 4
+        },
+        "mechanism": "fixed",
+        "excel_row": 18
+      },
+      {
+        "code": "OP_O2",
+        "name": "Review and update IT information data systems",
+        "phase": "ongoing",
+        "days": {
+          "SO": 5,
+          "LAW": 0,
+          "PM": 0,
+          "AA": 3,
+          "IT": 6,
+          "EC": 0
+        },
+        "mechanism": "fixed",
+        "excel_row": 19
+      },
+      {
+        "code": "OP_O3",
+        "name": "Refresher training to existing staff and training to new staff",
+        "phase": "ongoing",
+        "days": {
+          "SO": 15,
+          "LAW": 0,
+          "PM": 7,
+          "AA": 1.5,
+          "IT": 1.5,
+          "EC": 0
+        },
+        "mechanism": "fixed",
+        "excel_row": 20
+      },
+      {
+        "code": "OP_O_INFO",
+        "name": "Article 9 information collection before geolocation is separated",
+        "phase": "ongoing",
+        "days": {
+          "SO": 15,
+          "LAW": 0,
+          "PM": 10,
+          "AA": 10,
+          "IT": 0,
+          "EC": 0
+        },
+        "mechanism": "information_pool",
+        "excel_row": 21
+      },
+      {
+        "code": "OP_O_GEO",
+        "name": "Geolocation share of Article 9 work",
+        "phase": "ongoing",
+        "days": {
+          "SO": 6,
+          "LAW": 0,
+          "PM": 4,
+          "AA": 4,
+          "IT": 0,
+          "EC": 0
+        },
+        "mechanism": "geolocation",
+        "excel_row": 22
+      },
+      {
+        "code": "OP_O5",
+        "name": "Maintain risk assessments, including",
+        "phase": "ongoing",
+        "days": {
+          "SO": 6.0,
+          "LAW": 0,
+          "PM": 4.0,
+          "AA": 0,
+          "IT": 0,
+          "EC": 0
+        },
+        "mechanism": "risk",
+        "excel_row": 23
+      },
+      {
+        "code": "OP_O6",
+        "name": "Maintain risk mitigation including",
+        "phase": "ongoing",
+        "days": {
+          "SO": 12.0,
+          "LAW": 0,
+          "PM": 7.0,
+          "AA": 0,
+          "IT": 0,
+          "EC": 5.0
+        },
+        "mechanism": "risk",
+        "excel_row": 24
+      },
+      {
+        "code": "OP_O_DDS_FIXED",
+        "name": "Annual DDS fixed effort",
+        "phase": "ongoing",
+        "days": {
+          "SO": 3,
+          "LAW": 0,
+          "PM": 0,
+          "AA": 2,
+          "IT": 1,
+          "EC": 0
+        },
+        "mechanism": "dds_fixed",
+        "excel_row": 101
+      },
+      {
+        "code": "OP_O_DDS_VARIABLE",
+        "name": "Annual DDS variable effort",
+        "phase": "ongoing",
+        "days": {
+          "SO": 2,
+          "LAW": 0,
+          "PM": 0,
+          "AA": 4,
+          "IT": 0,
+          "EC": 0
+        },
+        "mechanism": "dds_variable",
+        "excel_row": 102
+      },
+      {
+        "code": "OP_O8",
+        "name": "Maintain and enhance DDS submission system",
+        "phase": "ongoing",
+        "days": {
+          "SO": 1,
+          "LAW": 0,
+          "PM": 0,
+          "AA": 0,
+          "IT": 3,
+          "EC": 0
+        },
+        "mechanism": "fixed",
+        "excel_row": 26
+      }
+    ],
+    "primary": [
+      {
+        "code": "P_S1",
+        "name": "Establish business, product, estimated quantity and country-of-production records",
+        "phase": "setup",
+        "days": {
+          "SO": 0,
+          "LAW": 0,
+          "PM": 0.75,
+          "AA": 0.75,
+          "IT": 0,
+          "EC": 0
+        },
+        "mechanism": "fixed",
+        "excel_row": 39
+      },
+      {
+        "code": "P_S2",
+        "name": "Record plot postal address or geolocation",
+        "phase": "setup",
+        "days": {
+          "SO": 0,
+          "LAW": 0,
+          "PM": 1,
+          "AA": 0.5,
+          "IT": 0,
+          "EC": 0
+        },
+        "mechanism": "fixed",
+        "excel_row": 40
+      },
+      {
+        "code": "P_S3",
+        "name": "Submit one-time simplified declaration, directly or through first customer",
+        "phase": "setup",
+        "days": {
+          "SO": 0,
+          "LAW": 0,
+          "PM": 0.5,
+          "AA": 1,
+          "IT": 0,
+          "EC": 0
+        },
+        "mechanism": "fixed",
+        "excel_row": 41
+      },
+      {
+        "code": "P_O1",
+        "name": "Maintain business and production records; no rolling DDS",
+        "phase": "ongoing",
+        "days": {
+          "SO": 0,
+          "LAW": 0,
+          "PM": 0.25,
+          "AA": 0.5,
+          "IT": 0,
+          "EC": 0
+        },
+        "mechanism": "fixed",
+        "excel_row": 44
+      },
+      {
+        "code": "P_O2",
+        "name": "Update plot address / production information where needed",
+        "phase": "ongoing",
+        "days": {
+          "SO": 0,
+          "LAW": 0,
+          "PM": 0.5,
+          "AA": 0.5,
+          "IT": 0,
+          "EC": 0
+        },
+        "mechanism": "fixed",
+        "excel_row": 45
+      }
+    ],
+    "downstream_non_sme": [
+      {
+        "code": "DN_S1",
+        "name": "Establish supplier-details capture",
+        "phase": "setup",
+        "days": {
+          "SO": 2,
+          "LAW": 0,
+          "PM": 2,
+          "AA": 1,
+          "IT": 0.5,
+          "EC": 0.5
+        },
+        "mechanism": "suppliers",
+        "excel_row": 51
+      },
+      {
+        "code": "DN_S2",
+        "name": "Establish capture of DDS references or declaration identifiers",
+        "phase": "setup",
+        "days": {
+          "SO": 2,
+          "LAW": 0,
+          "PM": 2,
+          "AA": 1,
+          "IT": 2,
+          "EC": 0
+        },
+        "mechanism": "fixed",
+        "excel_row": 52
+      },
+      {
+        "code": "DN_S3",
+        "name": "Establish customer-details capture",
+        "phase": "setup",
+        "days": {
+          "SO": 1,
+          "LAW": 0,
+          "PM": 0,
+          "AA": 1,
+          "IT": 0.5,
+          "EC": 0
+        },
+        "mechanism": "fixed",
+        "excel_row": 53
+      },
+      {
+        "code": "DN_S4",
+        "name": "Establish five-year record retention",
+        "phase": "setup",
+        "days": {
+          "SO": 2,
+          "LAW": 0,
+          "PM": 0,
+          "AA": 0.5,
+          "IT": 3,
+          "EC": 0
+        },
+        "mechanism": "fixed",
+        "excel_row": 54
+      },
+      {
+        "code": "DN_S5",
+        "name": "Register once in the EU information system",
+        "phase": "setup",
+        "days": {
+          "SO": 1,
+          "LAW": 0,
+          "PM": 0,
+          "AA": 0.5,
+          "IT": 0,
+          "EC": 0
+        },
+        "mechanism": "fixed",
+        "excel_row": 55
+      },
+      {
+        "code": "DN_S6",
+        "name": "Establish contingent concern checks and authority-notification procedures",
+        "phase": "setup",
+        "days": {
+          "SO": 2,
+          "LAW": 1,
+          "PM": 1,
+          "AA": 0,
+          "IT": 0,
+          "EC": 0
+        },
+        "mechanism": "fixed",
+        "excel_row": 56
+      },
+      {
+        "code": "DN_O1",
+        "name": "Capture supplier details",
+        "phase": "ongoing",
+        "days": {
+          "SO": 1.5,
+          "LAW": 0,
+          "PM": 1,
+          "AA": 1,
+          "IT": 0,
+          "EC": 0
+        },
+        "mechanism": "suppliers",
+        "excel_row": 59
+      },
+      {
+        "code": "DN_O2",
+        "name": "Capture DDS references or declaration identifiers",
+        "phase": "ongoing",
+        "days": {
+          "SO": 2,
+          "LAW": 0,
+          "PM": 0,
+          "AA": 8,
+          "IT": 0,
+          "EC": 0
+        },
+        "mechanism": "receipts",
+        "excel_row": 60
+      },
+      {
+        "code": "DN_O3",
+        "name": "Capture customer details",
+        "phase": "ongoing",
+        "days": {
+          "SO": 0.5,
+          "LAW": 0,
+          "PM": 0,
+          "AA": 1,
+          "IT": 0,
+          "EC": 0
+        },
+        "mechanism": "fixed",
+        "excel_row": 61
+      },
+      {
+        "code": "DN_O4",
+        "name": "Maintain records for five years",
+        "phase": "ongoing",
+        "days": {
+          "SO": 1,
+          "LAW": 0,
+          "PM": 0,
+          "AA": 0.5,
+          "IT": 1,
+          "EC": 0
+        },
+        "mechanism": "fixed",
+        "excel_row": 62
+      },
+      {
+        "code": "DN_O5",
+        "name": "Contingent check and inform activity; annual expected effort",
+        "phase": "ongoing",
+        "days": {
+          "SO": 1.5,
+          "LAW": 0.5,
+          "PM": 0.5,
+          "AA": 0,
+          "IT": 0,
+          "EC": 0
+        },
+        "mechanism": "fixed",
+        "excel_row": 63
+      }
+    ],
+    "downstream_sme": [
+      {
+        "code": "DS_S1",
+        "name": "Establish supplier-details capture",
+        "phase": "setup",
+        "days": {
+          "SO": 1.5,
+          "LAW": 0,
+          "PM": 0,
+          "AA": 1,
+          "IT": 0,
+          "EC": 0
+        },
+        "mechanism": "suppliers",
+        "excel_row": 69
+      },
+      {
+        "code": "DS_S2",
+        "name": "Establish capture of DDS references or declaration identifiers",
+        "phase": "setup",
+        "days": {
+          "SO": 1.5,
+          "LAW": 0,
+          "PM": 0,
+          "AA": 1,
+          "IT": 1,
+          "EC": 0
+        },
+        "mechanism": "fixed",
+        "excel_row": 70
+      },
+      {
+        "code": "DS_S3",
+        "name": "Establish customer-details capture",
+        "phase": "setup",
+        "days": {
+          "SO": 0.5,
+          "LAW": 0,
+          "PM": 0,
+          "AA": 0.5,
+          "IT": 0,
+          "EC": 0
+        },
+        "mechanism": "fixed",
+        "excel_row": 71
+      },
+      {
+        "code": "DS_S4",
+        "name": "Establish five-year record retention",
+        "phase": "setup",
+        "days": {
+          "SO": 1,
+          "LAW": 0,
+          "PM": 0,
+          "AA": 0.5,
+          "IT": 1,
+          "EC": 0
+        },
+        "mechanism": "fixed",
+        "excel_row": 72
+      },
+      {
+        "code": "DS_S5",
+        "name": "Establish authority-notification procedure; no registration or duty to check",
+        "phase": "setup",
+        "days": {
+          "SO": 1.5,
+          "LAW": 0,
+          "PM": 0,
+          "AA": 0,
+          "IT": 0,
+          "EC": 0
+        },
+        "mechanism": "fixed",
+        "excel_row": 73
+      },
+      {
+        "code": "DS_O1",
+        "name": "Capture supplier details",
+        "phase": "ongoing",
+        "days": {
+          "SO": 1,
+          "LAW": 0,
+          "PM": 0,
+          "AA": 0.5,
+          "IT": 0,
+          "EC": 0
+        },
+        "mechanism": "suppliers",
+        "excel_row": 76
+      },
+      {
+        "code": "DS_O2",
+        "name": "Capture DDS references or declaration identifiers",
+        "phase": "ongoing",
+        "days": {
+          "SO": 1,
+          "LAW": 0,
+          "PM": 0,
+          "AA": 4,
+          "IT": 0,
+          "EC": 0
+        },
+        "mechanism": "receipts",
+        "excel_row": 77
+      },
+      {
+        "code": "DS_O3",
+        "name": "Capture customer details",
+        "phase": "ongoing",
+        "days": {
+          "SO": 0,
+          "LAW": 0,
+          "PM": 0,
+          "AA": 0.5,
+          "IT": 0,
+          "EC": 0
+        },
+        "mechanism": "fixed",
+        "excel_row": 78
+      },
+      {
+        "code": "DS_O4",
+        "name": "Maintain records for five years",
+        "phase": "ongoing",
+        "days": {
+          "SO": 0.5,
+          "LAW": 0,
+          "PM": 0,
+          "AA": 0.5,
+          "IT": 0.5,
+          "EC": 0
+        },
+        "mechanism": "fixed",
+        "excel_row": 79
+      },
+      {
+        "code": "DS_O5",
+        "name": "Inform authority when non-compliance information arises; no duty to check",
+        "phase": "ongoing",
+        "days": {
+          "SO": 0.5,
+          "LAW": 0,
+          "PM": 0,
+          "AA": 0,
+          "IT": 0,
+          "EC": 0
+        },
+        "mechanism": "fixed",
+        "excel_row": 80
+      }
+    ]
+  },
+  "scenario_definitions": [
+    {
+      "id": "comparison_1",
+      "row": 4,
+      "mode": "comparison",
+      "risk": "high",
+      "dd_setup": 1,
+      "dd_ongoing": 1,
+      "operator_complexity": 2,
+      "commodity_factor": 2,
+      "year3_applies": false
+    },
+    {
+      "id": "comparison_2",
+      "row": 7,
+      "mode": "comparison",
+      "risk": "low",
+      "dd_setup": 0.5,
+      "dd_ongoing": 1,
+      "operator_complexity": 0.75,
+      "commodity_factor": 1,
+      "year3_applies": true
+    },
+    {
+      "id": "comparison_3",
+      "row": 10,
+      "mode": "comparison",
+      "risk": "standard",
+      "dd_setup": 0.75,
+      "dd_ongoing": 0.75,
+      "operator_complexity": 1,
+      "commodity_factor": 1.5,
+      "year3_applies": false
+    },
+    {
+      "id": "defra_1",
+      "row": 32,
+      "mode": "defra",
+      "risk": "low",
+      "dd_setup": 0.75,
+      "dd_ongoing": 0.75,
+      "operator_complexity": 1,
+      "commodity_factor": 1,
+      "year3_applies": true
+    },
+    {
+      "id": "defra_2",
+      "row": 35,
+      "mode": "defra",
+      "risk": "low",
+      "dd_setup": 0.75,
+      "dd_ongoing": 0.75,
+      "operator_complexity": 1,
+      "commodity_factor": 1.5,
+      "year3_applies": true
+    },
+    {
+      "id": "defra_3",
+      "row": 38,
+      "mode": "defra",
+      "risk": "low",
+      "dd_setup": 0.75,
+      "dd_ongoing": 0.75,
+      "operator_complexity": 1,
+      "commodity_factor": 2,
+      "year3_applies": true
+    },
+    {
+      "id": "defra_4",
+      "row": 41,
+      "mode": "defra",
+      "risk": "standard",
+      "dd_setup": 0.75,
+      "dd_ongoing": 0.75,
+      "operator_complexity": 1,
+      "commodity_factor": 1,
+      "year3_applies": true
+    },
+    {
+      "id": "defra_5",
+      "row": 44,
+      "mode": "defra",
+      "risk": "standard",
+      "dd_setup": 0.75,
+      "dd_ongoing": 0.75,
+      "operator_complexity": 1,
+      "commodity_factor": 1.5,
+      "year3_applies": true
+    },
+    {
+      "id": "defra_6",
+      "row": 47,
+      "mode": "defra",
+      "risk": "standard",
+      "dd_setup": 0.75,
+      "dd_ongoing": 0.75,
+      "operator_complexity": 1,
+      "commodity_factor": 2,
+      "year3_applies": true
+    }
+  ]
+}

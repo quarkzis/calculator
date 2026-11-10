@@ -1,844 +1,415 @@
-import streamlit as st
+"""Streamlit interface for the Phase 2 EUDR cost model."""
+
+import csv
+from dataclasses import asdict, replace
+from datetime import date
+from io import StringIO
+import re
+
 import pandas as pd
 import plotly.express as px
+import streamlit as st
 
-# Page configuration
-st.set_page_config(
-    page_title="EUDR Due Diligence Costs Calculator",
-    page_icon="💼",
-    layout="wide"
+from eudr_model import (
+    COMPANY_GROUPS, COMPANY_SIZES, DEFAULT_DAY_RATES, ROLES, ROLE_LABELS,
+    Settings, build_scenario_table, calculate, get_tasks,
 )
 
-# Main title
-st.title("EUDR Due Diligence Costs Calculator")
 
-# Primary filter: Setup vs Ongoing costs
-cost_type = st.radio(
-    "Select Cost Type",
-    ["SET UP COSTS", "ON-GOING COSTS", "BOTH COSTS"],
-    horizontal=True
-)
+st.set_page_config(page_title="EUDR Due Diligence Costs Calculator", page_icon="💼", layout="wide")
 
-# Define tasks for each cost type with codes, default values for each role, and company type factors
-setup_tasks = [
-    {
-        "code": "S1", 
-        "name": "Develop detailed EUDR due diligence compliance framework (Art. 12)",
-        "defaults": {"SO": 30.0, "LAW": 5.0, "PM": 0.0, "AA": 15.0, "IT": 0.0, "EC": 3.0},
-        "company_type_factors": {
-            "Upstream operator (non-SME)": 1.00,
-            "Upstream operator (SME)": 1.00,
-            "Downstream operator (non-SME)": 0.75,
-            "Downstream operator (SME)": 0.50,
-            "Trader (non-SME)": 0.75,
-            "Trader (SME)": 0.25
-        },
-        "risk_factor": 1.0
-    },
-    {
-        "code": "S2", 
-        "name": "Establish information/data systems for EUDR compliance (Art. 12)",
-        "defaults": {"SO": 20.0, "LAW": 0.0, "PM": 0.0, "AA": 5.0, "IT": 30.0, "EC": 0.0},
-        "company_type_factors": {
-            "Upstream operator (non-SME)": 1.00,
-            "Upstream operator (SME)": 1.00,
-            "Downstream operator (non-SME)": 0.75,
-            "Downstream operator (SME)": 0.50,
-            "Trader (non-SME)": 0.75,
-            "Trader (SME)": 0.25
-        },
-        "risk_factor": 1.0
-    },
-    {
-        "code": "S3", 
-        "name": "Conduct staff training and ensure sufficient capacity to manage EUDR compliance (Art. 12)",
-        "defaults": {"SO": 15.0, "LAW": 0.0, "PM": 7.0, "AA": 1.5, "IT": 1.5, "EC": 0.0},
-        "company_type_factors": {
-            "Upstream operator (non-SME)": 1.00,
-            "Upstream operator (SME)": 1.00,
-            "Downstream operator (non-SME)": 0.75,
-            "Downstream operator (SME)": 0.50,
-            "Trader (non-SME)": 0.75,
-            "Trader (SME)": 0.25
-        },
-        "risk_factor": 1.0
-    },
-    {
-        "code": "S4", 
-        "name": "Investigate and confirm product scope (HS Codes/ingredients) (Art. 9)",
-        "defaults": {"SO": 3.0, "LAW": 0.0, "PM": 0.0, "AA": 2.0, "IT": 0.0, "EC": 3.0},
-        "company_type_factors": {
-            "Upstream operator (non-SME)": 1.00,
-            "Upstream operator (SME)": 1.00,
-            "Downstream operator (non-SME)": 0.75,
-            "Downstream operator (SME)": 0.50,
-            "Trader (non-SME)": 0.75,
-            "Trader (SME)": 0.25
-        },
-        "risk_factor": 1.0
-    },
-    {
-        "code": "S5", 
-        "name": "Information collection (Art. 9)",
-        "defaults": {"SO": 20.0, "LAW": 0.0, "PM": 20.0, "AA": 10.0, "IT": 5.0, "EC": 5.0},
-        "company_type_factors": {
-            "Upstream operator (non-SME)": 1.00,
-            "Upstream operator (SME)": 1.00,
-            "Downstream operator (non-SME)": 0.75,
-            "Downstream operator (SME)": 0.50,
-            "Trader (non-SME)": 0.75,
-            "Trader (SME)": 0.25
-        },
-        "risk_factor": 1.0
-    },
-    {
-        "code": "S6", 
-        "name": "Conduct initial risk assessments (Art. 10)",
-        "defaults": {"SO": 8.0, "LAW": 0.0, "PM": 5.0, "AA": 0.0, "IT": 0.0, "EC": 5.0},
-        "company_type_factors": {
-            "Upstream operator (non-SME)": 1.00,
-            "Upstream operator (SME)": 1.00,
-            "Downstream operator (non-SME)": 0.50,
-            "Downstream operator (SME)": 0.50,
-            "Trader (non-SME)": 0.50,
-            "Trader (SME)": 0.25
-        },
-        "risk_factor": 0.0
-    },
-    {
-        "code": "S7", 
-        "name": "Risk mitigation (Art. 11)",
-        "defaults": {"SO": 16.0, "LAW": 3.0, "PM": 12.0, "AA": 5.0, "IT": 0.0, "EC": 10.0},
-        "company_type_factors": {
-            "Upstream operator (non-SME)": 1.00,
-            "Upstream operator (SME)": 1.00,
-            "Downstream operator (non-SME)": 0.50,
-            "Downstream operator (SME)": 0.50,
-            "Trader (non-SME)": 0.50,
-            "Trader (SME)": 0.25
-        },
-        "risk_factor": 0.0
-    },
-    {
-        "code": "S8", 
-        "name": "Submit initial DDS for existing products/batches (Art. 3)",
-        "defaults": {"SO": 2.0, "LAW": 0.0, "PM": 0.0, "AA": 3.0, "IT": 1.0, "EC": 2.0},
-        "company_type_factors": {
-            "Upstream operator (non-SME)": 1.00,
-            "Upstream operator (SME)": 1.00,
-            "Downstream operator (non-SME)": 1.00,
-            "Downstream operator (SME)": 0.00,
-            "Trader (non-SME)": 1.00,
-            "Trader (SME)": 0.00
-        },
-        "risk_factor": 1.0
-    }
-]
-
-ongoing_tasks = [
-    {
-        "code": "O1", 
-        "name": "Review and update due diligence procedures (Art. 12)",
-        "defaults": {"SO": 5.0, "LAW": 2.0, "PM": 0.0, "AA": 5.0, "IT": 0.0, "EC": 4.0},
-        "company_type_factors": {
-            "Upstream operator (non-SME)": 1.00,
-            "Upstream operator (SME)": 1.00,
-            "Downstream operator (non-SME)": 0.75,
-            "Downstream operator (SME)": 0.50,
-            "Trader (non-SME)": 0.75,
-            "Trader (SME)": 0.25
-        },
-        "risk_factor": 1.0
-    },
-    {
-        "code": "O2", 
-        "name": "Review and update IT information data systems (Art. 12)",
-        "defaults": {"SO": 5.0, "LAW": 0.0, "PM": 0.0, "AA": 3.0, "IT": 6.0, "EC": 0.0},
-        "company_type_factors": {
-            "Upstream operator (non-SME)": 1.00,
-            "Upstream operator (SME)": 1.00,
-            "Downstream operator (non-SME)": 0.75,
-            "Downstream operator (SME)": 0.50,
-            "Trader (non-SME)": 0.75,
-            "Trader (SME)": 0.25
-        },
-        "risk_factor": 1.0
-    },
-    {
-        "code": "O3", 
-        "name": "Refresher training to existing staff and training to new staff (Art. 12)",
-        "defaults": {"SO": 15.0, "LAW": 0.0, "PM": 7.0, "AA": 1.5, "IT": 1.5, "EC": 0.0},
-        "company_type_factors": {
-            "Upstream operator (non-SME)": 1.00,
-            "Upstream operator (SME)": 1.00,
-            "Downstream operator (non-SME)": 0.75,
-            "Downstream operator (SME)": 0.50,
-            "Trader (non-SME)": 0.75,
-            "Trader (SME)": 0.25
-        },
-        "risk_factor": 0.0
-    },
-    {
-        "code": "O4", 
-        "name": "Maintain/update supply chain information and documentation (Art. 9)",
-        "defaults": {"SO": 15.0, "LAW": 0.0, "PM": 10.0, "AA": 10.0, "IT": 0.0, "EC": 0.0},
-        "company_type_factors": {
-            "Upstream operator (non-SME)": 1.00,
-            "Upstream operator (SME)": 1.00,
-            "Downstream operator (non-SME)": 0.75,
-            "Downstream operator (SME)": 0.50,
-            "Trader (non-SME)": 0.50,
-            "Trader (SME)": 0.25
-        },
-        "risk_factor": 0.0
-    },
-    {
-        "code": "O5", 
-        "name": "Maintain risk assessments (Art. 10)",
-        "defaults": {"SO": 6.0, "LAW": 0.0, "PM": 4.0, "AA": 0.0, "IT": 0.0, "EC": 0.0},
-        "company_type_factors": {
-            "Upstream operator (non-SME)": 1.00,
-            "Upstream operator (SME)": 1.00,
-            "Downstream operator (non-SME)": 0.75,
-            "Downstream operator (SME)": 0.50,
-            "Trader (non-SME)": 0.50,
-            "Trader (SME)": 0.25
-        },
-        "risk_factor": 1.0
-    },
-    {
-        "code": "O6", 
-        "name": "Maintain risk mitigation (Art. 11)",
-        "defaults": {"SO": 12.0, "LAW": 0.0, "PM": 7.0, "AA": 0.0, "IT": 0.0, "EC": 5.0},
-        "company_type_factors": {
-            "Upstream operator (non-SME)": 1.00,
-            "Upstream operator (SME)": 1.00,
-            "Downstream operator (non-SME)": 0.75,
-            "Downstream operator (SME)": 0.50,
-            "Trader (non-SME)": 0.50,
-            "Trader (SME)": 0.25
-        },
-        "risk_factor": 1.0
-    },
-    {
-        "code": "O7", 
-        "name": "Continuously submit DDS for new product batches (Art. 3)",
-        "defaults": {"SO": 5.0, "LAW": 0.0, "PM": 0.0, "AA": 6.0, "IT": 1.0, "EC": 0.0},
-        "company_type_factors": {
-            "Upstream operator (non-SME)": 1.00,
-            "Upstream operator (SME)": 1.00,
-            "Downstream operator (non-SME)": 1.00,
-            "Downstream operator (SME)": 0.00,
-            "Trader (non-SME)": 1.00,
-            "Trader (SME)": 0.00
-        },
-        "risk_factor": 1.0
-    },
-    {
-        "code": "O8", 
-        "name": "Maintain and enhance DDS submission system (Art. 3)",
-        "defaults": {"SO": 1.0, "LAW": 0.0, "PM": 0.0, "AA": 0.0, "IT": 3.0, "EC": 0.0},
-        "company_type_factors": {
-            "Upstream operator (non-SME)": 1.00,
-            "Upstream operator (SME)": 1.00,
-            "Downstream operator (non-SME)": 1.00,
-            "Downstream operator (SME)": 0.00,
-            "Trader (non-SME)": 1.00,
-            "Trader (SME)": 0.00
-        },
-        "risk_factor": 1.0
-    }
-]
-
-# Adjust visible tasks based on selected cost type
-active_tasks = []
-if cost_type == "SET UP COSTS":
-    active_tasks = setup_tasks
-    st.header("SET UP COSTS - Task Assignment")
-elif cost_type == "ON-GOING COSTS":
-    active_tasks = ongoing_tasks
-    st.header("ON-GOING COSTS - Task Assignment")
-else:  # BOTH
-    active_tasks = setup_tasks + ongoing_tasks
-    st.header("SET UP COSTS - Task Assignment")
-
-# Define positions and their daily rates
-st.header("Daily Rates by Position")
-daily_rates = {
-    "SO": st.number_input("Sustainability Officer (£/day)", min_value=0.0, value=232.32, step=0.01),
-    "LAW": st.number_input("Lawyer (£/day)", min_value=0.0, value=261.90, step=0.01),
-    "PM": st.number_input("Procurement/Technical Manager (£/day)", min_value=0.0, value=218.80, step=0.01),
-    "AA": st.number_input("Administrative Assistant (£/day)", min_value=0.0, value=148.66, step=0.01),
-    "IT": st.number_input("IT Professional (£/day)", min_value=0.0, value=183.19, step=0.01),
-    "EC": st.number_input("External Consultant (£/day)", min_value=0.0, value=800.00, step=0.01),
+PHASE_LABELS = {"setup": "Set-up", "ongoing": "Annual"}
+SIZE_FACTORS = {"Large": 1.0, "Medium": 0.9, "Small": 0.75, "Micro": 0.5}
+DD_OPTIONS = {
+    "No existing due diligence": (1.0, 1.0),
+    "Partial existing due diligence": (0.75, 0.75),
+    "Full existing due diligence": (0.5, 1.0),
+}
+COMPLEXITY_OPTIONS = {"Simple": 0.75, "Standard": 1.0, "Complex": 2.0}
+RISK_LABELS = {"standard_high": "Standard / high risk", "low": "Low risk"}
+DETAIL_COLUMNS = {
+    "code": "Task code", "task": "Task", "phase": "Period", "role": "Role",
+    "input_days": "Input days", "effective_days": "Effective days", "day_rate": "Day rate (£)",
+    "base_cost": "Cost before scenario factors (£)", "task_factor": "Task factor",
+    "scenario_factor": "Scenario factor", "final_cost": "Final cost (£)",
 }
 
-# Function to create task assignment UI
-def create_task_assignment(tasks, task_prefix):
-    task_assignments = {}
-    
+
+def money(value, *, eligible=True):
+    if not eligible:
+        return "N/A"
+    return "TBC" if value is None or pd.isna(value) else f"£{value:,.2f}"
+
+
+def remember_task_day(company, code, role, widget_key):
+    """Keep edits after widgets for a hidden company or period are removed."""
+    st.session_state["task_inputs"][company][code][role] = st.session_state[widget_key]
+
+
+def get_company_task_inputs(company, tasks):
+    st.session_state.setdefault("task_inputs", {})
+    saved = st.session_state["task_inputs"].setdefault(company, {})
     for task in tasks:
-        task_code = task["code"]
-        task_name = task["name"]
-        defaults = task.get("defaults", {})
-        
-        st.subheader(f"{task_code}: {task_name}")
-        cols = st.columns(6)
-        
-        task_assignments[task_code] = {
-            "name": task_name,
-            "positions": {},
-            "company_type_factors": task.get("company_type_factors", {}),
-            "risk_factor": task.get("risk_factor", 1.0)
-        }
-        
-        for i, position in enumerate(["SO", "LAW", "PM", "AA", "IT", "EC"]):
-            with cols[i]:
-                # Use default value for this position if available, otherwise use 1.0
-                default_value = defaults.get(position, 1.0)
-                days = st.number_input(
-                    f"{position} days", 
-                    min_value=0.0, 
-                    value=default_value, 
-                    step=0.5,
-                    key=f"{task_prefix}_{task_code}_{position}"
-                )
-                task_assignments[task_code]["positions"][position] = days
-    
-    return task_assignments
+        values = saved.setdefault(task.code, {})
+        for role in ROLES:
+            values.setdefault(role, task.days.get(role, 0.0))
+    return saved
 
-# Initialize task assignments dictionary
-task_assignments = {}
 
-# Show appropriate task assignments based on selection
-if cost_type == "SET UP COSTS" or cost_type == "BOTH COSTS":
-    setup_assignments = create_task_assignment(setup_tasks, "setup")
-    task_assignments.update(setup_assignments)
+def render_task_inputs(company, tasks, period):
+    saved = get_company_task_inputs(company, tasks)
+    phases = ("setup", "ongoing") if period == "Both periods" else (
+        "setup" if period == "Set-up only" else "ongoing",
+    )
+    for phase in phases:
+        with st.expander(f"{PHASE_LABELS[phase]} task days", expanded=True):
+            for task in tasks:
+                if task.phase != phase:
+                    continue
+                st.markdown(f"**{task.name}**")
+                mechanism = str(task.mechanism).lower()
+                if mechanism == "information_pool":
+                    st.caption("Total Article 9 information work before separating geolocation. The allocation below is taken out of this total.")
+                elif mechanism == "geolocation":
+                    st.caption("Geolocation share of the Article 9 information work above. It is included once when the geolocation switch is on.")
+                elif company.startswith("operator_") and "dds" in (mechanism + task.code.lower()):
+                    if "fixed" in (mechanism + task.code.lower()):
+                        st.caption("Fixed annual DDS effort: this part is not divided by consignments per DDS.")
+                    elif "variable" in mechanism or "batch" in mechanism:
+                        st.caption("Variable annual DDS effort: the batching control divides this part only.")
+                columns = st.columns(len(ROLES))
+                for column, role in zip(columns, ROLES):
+                    widget_key = f"_days:{company}:{task.code}:{role}"
+                    if widget_key not in st.session_state:
+                        value = saved[task.code][role]
+                        st.session_state[widget_key] = None if value is None else float(value)
+                    with column:
+                        st.number_input(
+                            f"{role} days", min_value=0.0, value=None, step=0.25, format="%.2f",
+                            key=widget_key, help=ROLE_LABELS[role], on_change=remember_task_day,
+                            args=(company, task.code, role, widget_key),
+                        )
+    return {task.code: dict(saved[task.code]) for task in tasks}
 
-if cost_type == "ON-GOING COSTS" or cost_type == "BOTH COSTS":
-    if cost_type == "BOTH COSTS":
-        st.header("ON-GOING COSTS - Task Assignment")
-    ongoing_assignments = create_task_assignment(ongoing_tasks, "ongoing")
-    task_assignments.update(ongoing_assignments)
 
-# Company type selection
-st.header("Company Type")
-company_type = st.selectbox(
-    "Select your company type",
-    options=[
-        "Upstream operator (non-SME)",
-        "Upstream operator (SME)",
-        "Downstream operator (non-SME)",
-        "Downstream operator (SME)",
-        "Trader (non-SME)",
-        "Trader (SME)"
+def strict_sum(values):
+    """Keep an unresolved task or role subtotal unresolved."""
+    return None if values.isna().any() else float(values.sum())
+
+
+def readable_missing(text, tasks):
+    text = str(text)
+    for task in sorted(tasks, key=lambda item: len(item.code), reverse=True):
+        text = re.sub(rf"\b{re.escape(task.code)}\b", task.name, text)
+    return text
+
+
+def create_report_csv(settings, result, rates):
+    """Export summary and cost detail with the same final costs as the screen."""
+    output = StringIO()
+    columns = [
+        "Section", "Item", "Period", "Role", "Input days", "Effective days",
+        "Day rate GBP", "Cost before scenario factors GBP", "Task factor",
+        "Scenario factor", "Final cost GBP", "Value",
     ]
+    writer = csv.DictWriter(output, fieldnames=columns)
+    writer.writeheader()
+
+    def write(section, item, value=None, **other):
+        writer.writerow({"Section": section, "Item": item, "Value": value, **other})
+
+    write("Summary", "Calculation date", date.today().isoformat())
+    write("Summary", "Company group", COMPANY_GROUPS[settings.company])
+    write("Summary", "Business size", settings.size)
+    write("Summary", "Status", "N/A" if not result.eligible else ("TBC" if result.missing_inputs else "Complete"))
+    if not result.eligible:
+        write("Summary", "Reason", result.reason)
+    for label, value in [
+        ("Set-up cost GBP", result.setup), ("Annual cost GBP", result.annual),
+        ("Annual cost from year 3 GBP", result.annual_year3),
+        ("Set-up plus one annual cost GBP", result.total),
+    ]:
+        write("Summary", label, value if value is not None else ("TBC" if result.eligible else "N/A"))
+    for name, value in asdict(settings).items():
+        write("Settings", name, "" if value is None else value)
+    for role in ROLES:
+        write("Day rates", ROLE_LABELS[role], rates[role], Role=role)
+    for factor in result.factors:
+        for phase, key in [("Set-up", "setup"), ("Annual", "annual")]:
+            write("Applied factors", factor["factor"], factor.get(key), Period=phase)
+    for entry in result.details:
+        write(
+            "Cost detail", f"{entry['code']}: {entry['task']}",
+            Period=PHASE_LABELS.get(entry["phase"], entry["phase"]), Role=entry["role"],
+            **{
+                "Input days": entry.get("input_days"), "Effective days": entry.get("effective_days"),
+                "Day rate GBP": entry.get("day_rate"), "Cost before scenario factors GBP": entry.get("base_cost"),
+                "Task factor": entry.get("task_factor"), "Scenario factor": entry.get("scenario_factor"),
+                "Final cost GBP": entry.get("final_cost"),
+            },
+        )
+    for item in result.missing_inputs:
+        write("Missing inputs", str(item), "TBC")
+    return output.getvalue()
+
+
+st.title("EUDR Due Diligence Costs Calculator")
+st.caption("Phase 2 · Enter task days and daily rates to calculate company costs.")
+st.header("Company and assumptions")
+company = st.selectbox(
+    "Company group", options=list(COMPANY_GROUPS),
+    format_func=lambda key: COMPANY_GROUPS[key], key="company_group",
+)
+is_operator = company.startswith("operator_")
+is_primary = company == "primary"
+is_downstream = company.startswith("downstream_")
+company_columns = st.columns(2)
+with company_columns[0]:
+    size = st.selectbox("Business size", options=COMPANY_SIZES[company], key=f"size:{company}")
+with company_columns[1]:
+    if is_operator or is_primary:
+        risk_options = ["low", "standard_high"] if is_primary else ["standard_high", "low"]
+        risk = st.selectbox(
+            "Source-country risk", options=risk_options,
+            format_func=lambda key: RISK_LABELS[key], key=f"risk:{company}",
+        )
+    else:
+        risk = "standard_high"
+
+settings_values = {"company": company, "size": size, "risk": risk}
+if not is_primary and company != "downstream_non_sme":
+    settings_values["size_factor"] = st.number_input(
+        "Business size factor", min_value=0.0, value=SIZE_FACTORS[size],
+        step=0.05, format="%.2f", key=f"size_factor:{company}:{size}",
+        help="Applied once. A factor of 0.75 retains 75% of the company cost.",
+    )
+
+if is_operator:
+    left, right = st.columns(2)
+    with left:
+        settings_values["geolocation_enabled"] = st.checkbox(
+            "Include geolocation costs", value=True, key=f"geo:{company}",
+        )
+        settings_values["batch_dds"] = st.number_input(
+            "Average consignments per DDS", min_value=1.0, value=4.0,
+            step=1.0, format="%.2f", key=f"batch:{company}",
+            help="Only variable annual DDS work is divided by this number. Fixed work remains.",
+        )
+        legality = st.number_input(
+            "Legality share of risk-assessment effort (%)", min_value=0.0,
+            max_value=100.0, value=50.0, step=1.0, key=f"legality:{company}",
+        )
+        retained = st.number_input(
+            "Legality effort retained for land-use checks (%)", min_value=0.0,
+            max_value=100.0, value=55.0, step=1.0, key=f"retained:{company}",
+        )
+        settings_values["legality_share"] = legality / 100.0
+        settings_values["retained_legality_share"] = retained / 100.0
+        settings_values["apply_legality_to_setup"] = st.checkbox(
+            "Apply the legality reduction to set-up work", value=False, key=f"setup_legality:{company}",
+        )
+        retained_total = 1 - (legality / 100) * (1 - retained / 100)
+        st.caption(f"Combined Article 10 and 11 effort retained: {retained_total:.1%}. Low-risk cases exclude these tasks.")
+    with right:
+        dd = st.selectbox("Existing due diligence", list(DD_OPTIONS), key=f"dd:{company}")
+        settings_values["dd_setup"] = st.number_input(
+            "Existing-DD factor: set-up", min_value=0.0, value=DD_OPTIONS[dd][0],
+            step=0.05, format="%.2f", key=f"dd_setup:{company}:{dd}",
+        )
+        settings_values["dd_annual"] = st.number_input(
+            "Existing-DD factor: annual", min_value=0.0, value=DD_OPTIONS[dd][1],
+            step=0.05, format="%.2f", key=f"dd_annual:{company}:{dd}",
+        )
+        complexity = st.selectbox(
+            "Supply-chain complexity", list(COMPLEXITY_OPTIONS), index=1, key=f"complexity_choice:{company}",
+        )
+        settings_values["complexity"] = st.number_input(
+            "Supply-chain complexity factor", min_value=0.0, value=COMPLEXITY_OPTIONS[complexity],
+            step=0.05, format="%.2f", key=f"complexity_factor:{company}:{complexity}",
+        )
+        commodity_choice = st.selectbox(
+            "Commodity cost multiplier", [1.0, 1.5, 2.0],
+            format_func=lambda value: f"{value:g} × base cost", key=f"commodity_choice:{company}",
+        )
+        settings_values["commodity"] = st.number_input(
+            "Commodity factor", min_value=0.0, value=commodity_choice,
+            step=0.1, format="%.2f", key=f"commodity_factor:{company}:{commodity_choice}",
+        )
+
+elif is_primary:
+    primary_columns = st.columns(2)
+    with primary_columns[0]:
+        settings_values["primary_complexity"] = st.number_input(
+            "Primary-producer complexity factor", min_value=0.0, value=0.75,
+            step=0.05, format="%.2f", key="primary_complexity",
+        )
+    with primary_columns[1]:
+        if size == "Micro":
+            settings_values["micro_ratio"] = st.number_input(
+                "Micro cost relative to small", min_value=0.0, max_value=1.0, value=1.0,
+                step=0.05, format="%.2f", key="primary_micro_ratio",
+                help="1 uses the same task estimate. 0.75 is the optional sensitivity for a micro producer.",
+            )
+    st.caption("The task days describe a small producer. No additional small-business size factor is applied.")
+
+elif is_downstream:
+    reference_suppliers, reference_receipts = ((50, 400) if company == "downstream_non_sme" else (30, 200))
+    volume_columns = st.columns(2)
+    with volume_columns[0]:
+        settings_values["suppliers"] = st.number_input(
+            "Number of suppliers", min_value=0, value=reference_suppliers,
+            step=1, key=f"suppliers:{company}",
+        )
+    with volume_columns[1]:
+        settings_values["receipts"] = st.number_input(
+            "Receipts per year", min_value=0, value=reference_receipts,
+            step=1, key=f"receipts:{company}",
+        )
+    with st.expander("Reference business for the task estimates"):
+        st.caption("Task days are estimated at these reference volumes. Supplier-record tasks scale with suppliers; reference-number capture scales with receipts.")
+        reference_columns = st.columns(2)
+        with reference_columns[0]:
+            settings_values["reference_suppliers"] = st.number_input(
+                "Reference suppliers", min_value=1, value=reference_suppliers,
+                step=1, key=f"reference_suppliers:{company}",
+            )
+        with reference_columns[1]:
+            settings_values["reference_receipts"] = st.number_input(
+                "Reference receipts per year", min_value=1, value=reference_receipts,
+                step=1, key=f"reference_receipts:{company}",
+            )
+    st.caption("Other downstream tasks remain fixed. Existing-DD and commodity multipliers are 1.")
+
+settings_values["year3_efficiency"] = st.number_input(
+    "Annual efficiency reduction from year 3 (%)", min_value=0.0,
+    max_value=100.0, value=10.0, step=1.0, key="year3_efficiency_percent",
+    help="Applied once. A 10% reduction retains 90% of the annual cost from year 3 onwards.",
+) / 100.0
+
+st.header("Daily rates")
+st.caption("Defaults use ASHE 2026 annual pay for all employees × 1.22 / 220 working days, plus an £800 external-consultant day rate. Rates display two decimals; calculations retain full precision.")
+rate_columns = st.columns(3)
+day_rates = {}
+for index, role in enumerate(ROLES):
+    with rate_columns[index % 3]:
+        day_rates[role] = st.number_input(
+            f"{ROLE_LABELS[role]} (£/day)", min_value=0.0,
+            value=float(DEFAULT_DAY_RATES[role]), step=0.01, format="%.2f", key=f"rate:{role}",
+        )
+
+st.header("Task days")
+st.caption("Enter person-days for each role. Set-up is one-off; annual is one year's effort. Enter 0 for no work, or clear a value to leave an estimate pending.")
+period = st.radio("Show task period", ["Both periods", "Set-up only", "Annual only"], horizontal=True, key="task_period")
+tasks = get_tasks(company)
+task_days = render_task_inputs(company, tasks, period)
+
+try:
+    settings = Settings(**settings_values)
+    result = calculate(settings, day_rates=day_rates, task_days=task_days)
+except ValueError as error:
+    st.error(str(error))
+    st.stop()
+
+st.header("Cost results")
+if not result.eligible:
+    st.info(result.reason)
+elif result.missing_inputs:
+    st.info("Some required task estimates are still pending. Complete them, or enter 0 where no work is required, to calculate the affected totals.")
+    with st.expander("Inputs still to complete"):
+        for item in result.missing_inputs:
+            st.write(readable_missing(item, tasks))
+
+metrics = st.columns(4)
+for column, label, value in zip(
+    metrics,
+    ["Set-up cost", "Annual cost", "Annual cost from year 3", "Set-up + one annual cost"],
+    [result.setup, result.annual, result.annual_year3, result.total],
+):
+    column.metric(label, money(value, eligible=result.eligible))
+st.caption("The combined total includes set-up and one annual cost. It is not a three-year total.")
+
+with st.expander("Costs before scenario factors and applied factors"):
+    base_columns = st.columns(2)
+    base_columns[0].metric("Set-up before scenario factors", money(result.base_setup, eligible=result.eligible))
+    base_columns[1].metric("Annual before scenario factors", money(result.base_annual, eligible=result.eligible))
+    if is_operator:
+        st.write(f"Geolocation allocation: {money(result.geo_setup)} set-up and {money(result.geo_annual)} per year.")
+    if result.factors:
+        st.dataframe(pd.DataFrame(result.factors).rename(columns={"factor": "Factor", "setup": "Set-up", "annual": "Annual"}), use_container_width=True, hide_index=True)
+
+detail_df = pd.DataFrame(result.details, columns=list(DETAIL_COLUMNS))
+shown_phases = ["setup", "ongoing"] if period == "Both periods" else ["setup" if period == "Set-up only" else "ongoing"]
+shown_details = detail_df.loc[detail_df["phase"].isin(shown_phases)].copy()
+st.subheader(f"Cost breakdown: {period.lower()}")
+if result.eligible and not shown_details.empty:
+    display_details = shown_details.copy()
+    display_details["phase"] = display_details["phase"].map(PHASE_LABELS)
+    st.dataframe(display_details.rename(columns=DETAIL_COLUMNS), use_container_width=True, hide_index=True)
+    task_summary = shown_details.groupby(["phase", "code", "task"], sort=False, as_index=False)["final_cost"].agg(strict_sum)
+    task_summary["phase"] = task_summary["phase"].map(PHASE_LABELS)
+    st.dataframe(task_summary.rename(columns={"phase": "Period", "code": "Task code", "task": "Task", "final_cost": "Final cost (£)"}), use_container_width=True, hide_index=True)
+    complete_periods = {"setup": result.setup is not None, "ongoing": result.annual is not None}
+    if all(complete_periods[phase] for phase in shown_phases):
+        positive = shown_details.loc[shown_details["final_cost"].fillna(0) > 0]
+        if not positive.empty:
+            role_summary = positive.groupby("role", as_index=False)["final_cost"].sum()
+            charts = st.columns(2)
+            with charts[0]:
+                fig = px.pie(role_summary, names="role", values="final_cost", title="Final cost by role")
+                st.plotly_chart(fig, use_container_width=True)
+            with charts[1]:
+                fig = px.bar(
+                    task_summary, x="code", y="final_cost", color="phase", hover_data=["task"],
+                    title="Final cost by task", labels={"code": "Task", "final_cost": "Final cost (£)", "phase": "Period"},
+                    color_discrete_map={"Set-up": "#1f77b4", "Annual": "#ff7f0e"},
+                )
+                st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.caption("The selected period has zero cost.")
+
+st.header("Download results")
+csv_report = create_report_csv(settings, result, day_rates)
+st.download_button(
+    "Download CSV report", data=csv_report.encode("utf-8-sig"),
+    file_name=f"eudr_phase2_{company}_{date.today():%Y%m%d}.csv", mime="text/csv", key="download_current",
 )
 
-# Show task-specific factors message
-st.info("Task-specific factors will be applied")
-
-# Business size discount (only applicable to SME companies)
-business_size_discount = 1.0  # Default for non-SME companies
-if "(SME)" in company_type:
-    st.header("Business Size Discount")
-    business_size = st.selectbox(
-        "Select your business size (only applicable to SME companies)",
-        options=[
-            "Medium",
-            "Small",
-            "Micro"
-        ],
-        index=0
-    )
-    
-    # Set default discount factor based on selection
-    if business_size == "Small":
-        default_business_size_discount = 0.75
-    elif business_size == "Micro":
-        default_business_size_discount = 0.5
-    else:  # Medium
-        default_business_size_discount = 0.9
-    
-    # Add ability to edit the factor
-    business_size_discount = st.number_input(
-        "Business size discount factor (adjust if needed)",
-        min_value=0.0, 
-        max_value=5.0, 
-        value=default_business_size_discount, 
-        step=0.01,
-        format="%.2f",
-        key="business_size_discount"
-    )
-else:
-    business_size_discount = 1.0  # No discount for non-SME companies
-
-# Adjustment factors section (excluding company type which is now task-specific)
-st.header("Other Adjustment Factors")
-
-col1, col2 = st.columns(2)
-
-with col1:
-    # Due diligence compliance
-    st.subheader("Due Diligence Compliance")
-    
-    default_dd_compliance_types = {
-        "No due diligence": {"setup": 1.00, "ongoing": 1.00},
-        "Partial due diligence": {"setup": 0.75, "ongoing": 0.75},
-        "Full due diligence": {"setup": 0.50, "ongoing": 1.00},  # Different factors for setup vs ongoing
-    }
-    
-    dd_compliance = st.selectbox("Select compliance level", list(default_dd_compliance_types.keys()))
-    default_dd_factors = default_dd_compliance_types[dd_compliance]
-    
-    # Add ability to edit the factors
-    st.write("Due diligence factors (adjust if needed)")
-    dd_setup_factor = st.number_input(
-        "Setup cost factor",
-        min_value=0.0, 
-        max_value=5.0, 
-        value=default_dd_factors["setup"], 
-        step=0.01,
-        format="%.2f",
-        key="dd_setup_factor"
-    )
-    dd_ongoing_factor = st.number_input(
-        "Ongoing cost factor",
-        min_value=0.0, 
-        max_value=5.0, 
-        value=default_dd_factors["ongoing"], 
-        step=0.01,
-        format="%.2f",
-        key="dd_ongoing_factor"
-    )
-    
-    # Source country
-    st.subheader("Risk Level in Source Country")
-    risk_type = st.radio("Select risk level", 
-                        ["Low risk country", "High/Standard risk country"],
-                        horizontal=True)
-    # Show task-specific factors message
-    st.info("Task-specific factors will be applied")
-
-with col2:
-    # Supply chain complexity
-# Dentro de la sección "Supply Chain Complexity" (reemplazar el código existente):
-    st.subheader("Supply Chain Complexity")
-    
-    default_supply_chain_types = {
-        "Simple supply chain": 0.75,  # Valor fijo para Simple
-        "Standard supply chain": 1.00,
-        "Complex supply chain": 2.00,
-    }
-    
-    supply_chain = st.selectbox("Select complexity", list(default_supply_chain_types.keys()))
-    supply_chain_factor = st.number_input(
-        "Supply chain factor (adjust if needed)",
-        min_value=0.0, 
-        max_value=5.0, 
-        value=default_supply_chain_types[supply_chain],  # Usar directamente el valor del diccionario
-        step=0.01,
-        format="%.2f",
-        key="supply_chain_factor"
-    )
-    
-    # Quantity of commodities
-    st.subheader("Quantity of Commodities")
-    commodity_count = st.slider("Select number of commodities", min_value=1, max_value=10, value=1, step=1)
-    
-    # Calculate default factor based on commodity count
-    if commodity_count == 1:
-        default_commodity_factor = 1.00
-    elif commodity_count == 2:
-        default_commodity_factor = 1.50
-    elif commodity_count == 3:
-        default_commodity_factor = 1.50
-    elif commodity_count == 4:
-        default_commodity_factor = 1.50
-    else:
-        default_commodity_factor = 2.0
-    
-    # Add ability to edit the factor
-    commodity_factor = st.number_input(
-        "Commodity factor (adjust if needed)",
-        min_value=0.0, 
-        max_value=5.0, 
-        value=default_commodity_factor, 
-        step=0.01,
-        format="%.2f",
-        key="commodity_factor"
-    )
-
-# NOW DO ALL CALCULATIONS AFTER ALL INPUTS ARE DEFINED
-# Calculate base costs and apply company type factors
-base_costs_by_task_position = {}
-position_totals = {"SO": 0, "LAW": 0, "PM": 0, "AA": 0, "IT": 0, "EC": 0}
-task_totals = {}
-task_categories = {}
-adjusted_task_totals = {}
-
-for task_code, task_data in task_assignments.items():
-    task_name = task_data["name"]
-    positions = task_data["positions"]
-    company_factors = task_data["company_type_factors"]
-    
-    # Determine risk factor based on selection
-    if risk_type == "Low risk country":
-        task_risk_factor = task_data.get("risk_factor", 1.0)  # Use task-specific factor
-    else:
-        task_risk_factor = 1.0  # Force 1.0 for High/Standard risk country
-    
-    base_costs_by_task_position[task_code] = {}
-    task_total = 0
-    
-    # Determine if this is a setup or ongoing task
-    is_setup = task_code.startswith("S")
-    task_categories[task_code] = "SET UP COSTS" if is_setup else "ON-GOING COSTS"
-    
-    # Get company type factor for this task
-    company_factor = company_factors.get(company_type, 1.0)
-    
-    for position, days in positions.items():
-        cost = days * daily_rates[position]
-        base_costs_by_task_position[task_code][position] = cost
-        position_totals[position] += cost
-        task_total += cost
-    
-    task_totals[task_code] = task_total
-    
-    # Apply both company factor and risk factor together
-    company_and_risk_adjusted_cost = task_total * company_factor * task_risk_factor
-    adjusted_task_totals[task_code] = company_and_risk_adjusted_cost
-
-total_base_cost = sum(task_totals.values())
-total_after_adjustments = sum(adjusted_task_totals.values())
-
-# Calculate the final adjusted cost sequentially
-# First separate setup and ongoing costs from adjusted totals
-setup_cost_after_adjustments = sum([adjusted_task_totals[code] for code in adjusted_task_totals if code.startswith("S")])
-ongoing_cost_after_adjustments = sum([adjusted_task_totals[code] for code in adjusted_task_totals if code.startswith("O")])
-
-# Apply due diligence factors (these are applied after company and risk adjustments)
-adjusted_setup_after_dd = setup_cost_after_adjustments * dd_setup_factor
-adjusted_ongoing_after_dd = ongoing_cost_after_adjustments * dd_ongoing_factor
-adjusted_cost_after_dd = adjusted_setup_after_dd + adjusted_ongoing_after_dd
-
-# Apply other factors (same for all costs)
-adjusted_cost_after_supply_chain = adjusted_cost_after_dd * supply_chain_factor
-adjusted_cost_after_commodity = adjusted_cost_after_supply_chain * commodity_factor
-
-# Apply business size discount (only for SME companies)
-final_adjusted_cost = adjusted_cost_after_commodity * business_size_discount
-
-# Create detailed cost breakdown by task and position
-detailed_data = []
-for task_code, task_data in task_assignments.items():
-    task_name = task_data["name"]
-    positions = task_data["positions"]
-    company_factor = task_data["company_type_factors"].get(company_type, 1.0)
-    
-    # Determine risk factor based on selection
-    if risk_type == "Low risk country":
-        task_risk_factor = task_data.get("risk_factor", 1.0)  # Use task-specific factor
-    else:
-        task_risk_factor = 1.0  # Force 1.0 for High/Standard risk country
-    
-    for position in ["SO", "LAW", "PM", "AA", "IT", "EC"]:
-        if position in positions and positions[position] > 0:
-            base_cost = positions[position] * daily_rates[position]
-            adjusted_cost = base_cost * company_factor * task_risk_factor
-                
-            detailed_data.append({
-                "Task Code": task_code,
-                "Task": task_name,
-                "Position": position,
-                "Work Days": positions[position],
-                "Daily Rate (£)": daily_rates[position],
-                "Base Cost (£)": base_cost,
-                "Company Factor": company_factor,
-                "Risk Factor": task_risk_factor,
-                "Adjusted Cost (£)": adjusted_cost,
-                "Category": task_categories[task_code]
-            })
-
-detailed_df = pd.DataFrame(detailed_data)
-
-# Create task summary
-task_summary = []
-for task_code in task_totals:
-    if task_totals[task_code] > 0:  # Only include tasks with actual costs
-        company_factor = task_assignments[task_code]["company_type_factors"].get(company_type, 1.0)
-        
-        # Determine risk factor based on selection
-        if risk_type == "Low risk country":
-            task_risk_factor = task_assignments[task_code].get("risk_factor", 1.0)  # Use task-specific factor
-        else:
-            task_risk_factor = 1.0  # Force 1.0 for High/Standard risk country
-            
-        # Calculate adjusted cost with both company and risk factors
-        adjusted_cost = task_totals[task_code] * company_factor * task_risk_factor
-            
-        task_summary.append({
-            "Task Code": task_code,
-            "Task": task_assignments[task_code]["name"],
-            "Category": task_categories[task_code],
-            "Base Cost (£)": task_totals[task_code],
-            "Company Factor": company_factor,
-            "Risk Factor": task_risk_factor,
-            "Adjusted Cost (£)": adjusted_cost
-        })
-
-task_summary_df = pd.DataFrame(task_summary)
-
-# Create position summary (only include positions with costs > 0)
-position_summary = []
-for position in position_totals:
-    if position_totals[position] > 0:
-        position_summary.append({
-            "Position": position,
-            "Total Cost (£)": position_totals[position]
-        })
-
-position_summary_df = pd.DataFrame(position_summary)
-
-# Create category summary
-if not task_summary_df.empty:
-    category_summary = task_summary_df.groupby('Category').agg({
-        'Base Cost (£)': 'sum',
-        'Adjusted Cost (£)': 'sum'
-    }).reset_index()
-else:
-    category_summary = pd.DataFrame()
-
-# Display results
-st.header("Budget Results")
-
-# Display the results
-col1, col2 = st.columns(2)
-
-with col1:
-    st.subheader("Detailed Cost Breakdown")
-    if not detailed_df.empty:
-        st.dataframe(detailed_df, use_container_width=True)
-    else:
-        st.info("No costs to display. Please assign work days to tasks.")
-    
-    st.subheader("Task Summary")
-    if not task_summary_df.empty:
-        st.dataframe(task_summary_df, use_container_width=True)
-    else:
-        st.info("No tasks with assigned costs to display.")
-    
-    # Show applied factors
-    factors_data = [
-        {"Factor": "Company Type", "Setup Value": "Task-specific", "Ongoing Value": "Task-specific", "Description": company_type},
-        {"Factor": "Due Diligence Compliance", "Setup Value": f"{dd_setup_factor:.2f}", "Ongoing Value": f"{dd_ongoing_factor:.2f}", "Description": dd_compliance},
-        {"Factor": "Supply Chain Complexity", "Setup Value": f"{supply_chain_factor:.2f}", "Ongoing Value": f"{supply_chain_factor:.2f}", "Description": supply_chain},
-        {"Factor": "Commodity Count", "Setup Value": f"{commodity_factor:.2f}", "Ongoing Value": f"{commodity_factor:.2f}", "Description": f"{commodity_count} commodities"},
-        {"Factor": "Country Risk Level", "Setup Value": "Task-specific" if risk_type == "Low risk country" else "1.00", "Ongoing Value": "Task-specific" if risk_type == "Low risk country" else "1.00", "Description": risk_type},
-        {"Factor": "Business Size Discount", "Setup Value": f"{business_size_discount:.2f}", "Ongoing Value": f"{business_size_discount:.2f}", "Description": "Applied to SME companies only"},
-    ]
-    factors_df = pd.DataFrame(factors_data)
-    st.subheader("Applied Factors")
-    st.dataframe(factors_df, use_container_width=True)
-
-with col2:
-    # Position summary pie chart
-    if not position_summary_df.empty:
-        fig1 = px.pie(
-            position_summary_df,
-            values="Total Cost (£)",
-            names="Position",
-            title="Base Cost Distribution by Position",
-            color_discrete_sequence=px.colors.qualitative.Bold
+with st.expander("Compare the three scenarios and Defra cases"):
+    st.caption("These are the workbook's three comparison scenarios and six Defra cases, using the current Phase 2 controls and daily rates. Task edits apply to the current group; both operator groups share their task list. Other groups use their default task estimates.")
+    st.caption("The three comparison scenarios retain their own existing-DD, complexity and commodity assumptions. The second includes a 10% year-3 reduction. The Defra cases use the factors below and the year-3 reduction entered above.")
+    defra_columns = st.columns(3)
+    with defra_columns[0]:
+        defra_dd_setup = st.number_input(
+            "Defra existing-DD factor: set-up", min_value=0.0, value=0.75,
+            step=0.05, format="%.2f", key="defra_dd_setup",
         )
-        st.plotly_chart(fig1, use_container_width=True)
-    else:
-        st.info("No position costs to display in chart.")
-    
-    # Task summary bar chart
-    if not task_summary_df.empty:
-        fig2 = px.bar(
-            task_summary_df,
-            x="Task Code",
-            y="Adjusted Cost (£)",
-            title="Adjusted Cost Distribution by Task",
-            hover_data=["Task", "Base Cost (£)", "Company Factor", "Risk Factor"],
-            color="Category",
-            color_discrete_map={"SET UP COSTS": "#1f77b4", "ON-GOING COSTS": "#ff7f0e"},
-            category_orders={"Category": ["SET UP COSTS", "ON-GOING COSTS"]}
+    with defra_columns[1]:
+        defra_dd_annual = st.number_input(
+            "Defra existing-DD factor: annual", min_value=0.0, value=0.75,
+            step=0.05, format="%.2f", key="defra_dd_annual",
         )
-        fig2.update_layout(xaxis_tickangle=-45)
-        st.plotly_chart(fig2, use_container_width=True)
-    else:
-        st.info("No task costs to display in chart.")
-    
-    # Category pie chart
-    if not category_summary.empty:
-        fig3 = px.pie(
-            category_summary,
-            values="Adjusted Cost (£)",
-            names="Category",
-            title="Adjusted Cost Distribution by Category",
-            color="Category",
-            color_discrete_map={"SET UP COSTS": "#1f77b4", "ON-GOING COSTS": "#ff7f0e"},
-            hover_data=["Base Cost (£)"]
+    with defra_columns[2]:
+        defra_complexity = st.number_input(
+            "Defra operator complexity factor", min_value=0.0, value=1.0,
+            step=0.05, format="%.2f", key="defra_complexity",
         )
-        st.plotly_chart(fig3, use_container_width=True)
-    else:
-        st.info("No category costs to display in chart.")
-
-# Show total costs in a more organized way
-st.header("Cost Summary")
-col1, col2 = st.columns(2)
-with col1:
-    st.metric("Total Base Cost (Before Adjustments)", f"£{total_base_cost:,.2f}")
-with col2:
-    st.metric(
-        "Final Adjusted Cost", 
-        f"£{final_adjusted_cost:,.2f}", 
-        delta=f"{((final_adjusted_cost/total_base_cost)-1)*100:.1f}%" if total_base_cost > 0 else "0%"
+    comparison_settings = replace(
+        settings, defra_dd_setup=defra_dd_setup, defra_dd_annual=defra_dd_annual,
+        defra_complexity=defra_complexity,
     )
-
-# Detailed breakdown
-st.header("Detailed Calculation Breakdown")
-with st.expander("View detailed calculation breakdown"):
-    st.markdown(f"""
-    ### Base Cost
-    - **Total Base Cost**: £{total_base_cost:,.2f}
-    - **Setup Costs**: £{sum([task_totals[code] for code in task_totals if code.startswith('S')]):,.2f}
-    - **Ongoing Costs**: £{sum([task_totals[code] for code in task_totals if code.startswith('O')]):,.2f}
-
-    ### Company Type and Risk Level Adjustment (per task)
-    - **After Adjustments**: £{total_after_adjustments:,.2f}
-
-    ### Sequential Factor Application
-    1. **Due Diligence Compliance Adjustment** ({dd_compliance}):
-       - Setup: £{setup_cost_after_adjustments:,.2f} × {dd_setup_factor:.2f} = £{adjusted_setup_after_dd:,.2f}
-       - Ongoing: £{ongoing_cost_after_adjustments:,.2f} × {dd_ongoing_factor:.2f} = £{adjusted_ongoing_after_dd:,.2f}
-       - **Subtotal**: £{adjusted_cost_after_dd:,.2f}
-    2. **Supply Chain Complexity Adjustment** ({supply_chain}): £{adjusted_cost_after_dd:,.2f} × {supply_chain_factor:.2f} = £{adjusted_cost_after_supply_chain:,.2f}
-    3. **Commodities Adjustment** ({commodity_count}): £{adjusted_cost_after_supply_chain:,.2f} × {commodity_factor:.2f} = £{adjusted_cost_after_commodity:,.2f}
-    4. **Business Size Discount**: £{adjusted_cost_after_commodity:,.2f} × {business_size_discount:.2f} = £{final_adjusted_cost:,.2f}
-
-    ### Final Adjusted Cost: £{final_adjusted_cost:,.2f}
-    """)
-
-# Add section to download results
-st.header("Download Results")
-
-# Prepare data for download
-def create_download_data():
-    # Create factors data including Company Type as Task-specific
-    factors_data = [
-        {"Factor": "Company Type", "Setup Value": "Task-specific", "Ongoing Value": "Task-specific", "Description": company_type},
-        {"Factor": "Due Diligence Compliance", "Setup Value": f"{dd_setup_factor:.2f}", "Ongoing Value": f"{dd_ongoing_factor:.2f}", "Description": dd_compliance},
-        {"Factor": "Supply Chain Complexity", "Setup Value": f"{supply_chain_factor:.2f}", "Ongoing Value": f"{supply_chain_factor:.2f}", "Description": supply_chain},
-        {"Factor": "Commodity Count", "Setup Value": f"{commodity_factor:.2f}", "Ongoing Value": f"{commodity_factor:.2f}", "Description": f"{commodity_count} commodities"},
-        {"Factor": "Country Risk Level", "Setup Value": "Task-specific" if risk_type == "Low risk country" else "1.00", "Ongoing Value": "Task-specific" if risk_type == "Low risk country" else "1.00", "Description": risk_type},
-        {"Factor": "Business Size Discount", "Setup Value": f"{business_size_discount:.2f}", "Ongoing Value": f"{business_size_discount:.2f}", "Description": "Applied to SME companies only"},
-    ]
-    
-    # Create a dictionary of DataFrames
-    data = {
-        "Summary": pd.DataFrame([
-            {"Information": "Calculation Date", "Value": f"{pd.Timestamp.now().strftime('%Y-%m-%d')}"},
-            {"Information": "Cost Type", "Value": cost_type},
-            {"Information": "Company Type", "Value": company_type},
-            {"Information": "Business Size", "Value": business_size if "(SME)" in company_type else "N/A (non-SME)"},
-            {"Information": "Business Size Discount", "Value": f"{business_size_discount:.2f}" if "SME" in company_type else "N/A (non-SME)"},
-            {"Information": "Total Base Cost (Before Adjustments)", "Value": f"£{total_base_cost:,.2f}"},
-            {"Information": "Final Adjusted Cost", "Value": f"£{final_adjusted_cost:,.2f}"}
-        ]),
-        "Applied_Factors": pd.DataFrame(factors_data),
-        "Calculation_Steps": pd.DataFrame([
-            {"Step": "Base Cost", "Value": f"£{total_base_cost:,.2f}"},
-            {"Step": "After Company and Risk Adjustment", 
-             "Details": f"Applied company-specific and risk factors ({'task-specific' if risk_type == 'Low risk country' else '1.0 for all tasks'})",
-             "Value": f"£{total_after_adjustments:,.2f}"},
-            {"Step": f"Due Diligence Compliance Adjustment ({dd_compliance})", 
-             "Details": f"Setup: {dd_setup_factor:.2f}x, Ongoing: {dd_ongoing_factor:.2f}x",
-             "Value": f"£{adjusted_cost_after_dd:,.2f}"},
-            {"Step": f"Supply Chain Complexity Adjustment ({supply_chain})", 
-             "Details": f"Factor: {supply_chain_factor:.2f}",
-             "Value": f"£{adjusted_cost_after_supply_chain:,.2f}"},
-            {"Step": f"Commodities Adjustment ({commodity_count})", 
-             "Details": f"Factor: {commodity_factor:.2f}",
-             "Value": f"£{adjusted_cost_after_commodity:,.2f}"},
-            {"Step": "Business Size Discount", 
-             "Details": f"Factor: {business_size_discount:.2f}" if "SME" in company_type else "Not applied (non-SME)",
-             "Value": f"£{final_adjusted_cost:,.2f}"}
-        ]),
-        "Detailed_Costs": detailed_df,
-        "Task_Summary": task_summary_df, 
-        "Category_Summary": category_summary,
-        "Position_Summary": position_summary_df,
-        "Task_Factors": pd.DataFrame([
-            {
-                "Task Code": task["code"],
-                "Task Name": task["name"],
-                "Company Factor": task["company_type_factors"].get(company_type, 1.0),
-                "Risk Factor": task.get("risk_factor", 1.0) if risk_type == "Low risk country" else 1.0,
-                "Risk Type": risk_type
-            }
-            for task in setup_tasks + ongoing_tasks
-        ])
-    }
-    return data
-
-# Button to download as CSV
-if st.button("Generate CSV Report"):
-    data = create_download_data()
-    
-    # Create Excel-style sheets in a single CSV by adding headers and separating sections
-    sections = []
-    
-    # Summary section
-    sections.append("===== SUMMARY =====")
-    sections.append(data["Summary"].to_csv(index=False))
-    sections.append("\n")
-    
-    # Factors section
-    sections.append("===== APPLIED FACTORS =====")
-    sections.append(data["Applied_Factors"].to_csv(index=False))
-    sections.append("\n")
-    
-    # Calculation steps section
-    sections.append("===== CALCULATION STEPS =====")
-    sections.append(data["Calculation_Steps"].to_csv(index=False))
-    sections.append("\n")
-    
-    # Category summary section
-    sections.append("===== CATEGORY SUMMARY =====")
-    sections.append(data["Category_Summary"].to_csv(index=False))
-    sections.append("\n")
-    
-    # Position summary section
-    sections.append("===== POSITION SUMMARY =====")
-    sections.append(data["Position_Summary"].to_csv(index=False))
-    sections.append("\n")
-    
-    # Task summary section
-    sections.append("===== TASK SUMMARY =====")
-    sections.append(data["Task_Summary"].to_csv(index=False))
-    sections.append("\n")
-    
-    # Detailed costs section
-    sections.append("===== DETAILED COSTS =====")
-    sections.append(data["Detailed_Costs"].to_csv(index=False))
-    
-    # Join all sections
-    csv_content = "\n".join(sections)
-    
-    st.download_button(
-        label="Download CSV Report",
-        data=csv_content,
-        file_name=f"eudr_due_diligence_budget_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
-        mime="text/csv",
-    )
-
-# Final informational note
-st.info("""
-This calculator provides an estimate of the budget required to establish and maintain a due diligence system,
-report annually, and keep records based on the selected factors. Values can be adjusted according to specific needs in each case.
-""")
+    try:
+        scenarios = pd.DataFrame(build_scenario_table(day_rates=day_rates, task_days=task_days, settings=comparison_settings))
+        scenario_output = scenarios.drop(columns=["case_id", "company"], errors="ignore")
+        st.dataframe(
+            scenario_output, use_container_width=True, hide_index=True,
+            column_config={
+                column: st.column_config.NumberColumn(column, format="%.2f")
+                for column in scenario_output.columns if "(£)" in column
+            },
+        )
+        st.download_button(
+            "Download scenario comparison CSV", data=scenario_output.to_csv(index=False).encode("utf-8-sig"),
+            file_name=f"eudr_phase2_scenarios_{date.today():%Y%m%d}.csv", mime="text/csv", key="download_scenarios",
+        )
+    except ValueError as error:
+        st.info(str(error))
