@@ -25,7 +25,16 @@ def app(monkeypatch):
         return original(*args, **kwargs)
 
     monkeypatch.setattr(st, "download_button", capture_download)
-    at = AppTest.from_file(ROOT / "calculator.py", default_timeout=30).run()
+    at = AppTest.from_file(ROOT / "calculator.py", default_timeout=30)
+    # Synthetic public test credential; this always overrides any local secrets.
+    at.secrets["app_password_hash"] = (
+        "pbkdf2_sha256$600000$00112233445566778899aabbccddeeff$"
+        "a6f7eba8762b50fb319b7eb8101847f6aa4a2951fba5a8f687938057b5f7cbf3"
+    )
+    at.run()
+    assert not at.exception
+    at.text_input(key="_access_password").set_value("Contraseña para pruebas 🔒")
+    at.button(key="_access_submit").click().run()
     assert not at.exception
     return at, downloads
 

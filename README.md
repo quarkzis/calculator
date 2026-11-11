@@ -17,9 +17,41 @@ python -m pip install -r requirements.txt
 python -m streamlit run calculator.py
 ```
 
-For Streamlit Community Cloud, keep `calculator.py`, `eudr_model.py`,
+For Streamlit Community Cloud, keep `calculator.py`, `access_control.py`, `eudr_model.py`,
 `data/phase2_inputs.json` and `requirements.txt` together in the repository.
 Use `calculator.py` as the entry point.
+
+## Shared-password access
+
+The calculator requires a shared password before showing its inputs, results or
+downloads. A missing or invalid password configuration blocks access.
+
+Store only the password hash in Streamlit Community Cloud under **App settings →
+Secrets**, or in `.streamlit/secrets.toml` for local use:
+
+```toml
+app_password_hash = "pbkdf2_sha256$600000$<salt>$<digest>"
+```
+
+Replace the example with a real hash. To generate one without putting a password
+in your shell history, run this in an interactive Python session:
+
+```python
+from getpass import getpass
+from access_control import hash_password
+print(hash_password(getpass("New shared password: ")))
+```
+
+Share the password separately with the intended users. Never commit the password,
+its hash configuration, or GitHub credentials. Both local credential files are
+ignored by Git. The app has a Sign out button; signing out also clears that browser
+session's calculation edits. Updating the configured hash requires users to log
+in again on their next interaction. Five incorrect attempts trigger a short
+cooldown in that browser session; this is not an account-wide rate limit.
+
+This gate restricts the hosted calculator. The GitHub repository and any other
+deployment have their own access settings; a public repository still exposes its
+source code and packaged model inputs.
 
 ## Using the calculator
 

@@ -10,6 +10,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+from access_control import require_access
 from eudr_model import (
     COMPANY_GROUPS, COMPANY_SIZES, DEFAULT_DAY_RATES, ROLES, ROLE_LABELS,
     Settings, build_scenario_table, calculate, get_tasks,
@@ -17,6 +18,7 @@ from eudr_model import (
 
 
 st.set_page_config(page_title="EUDR Due Diligence Costs Calculator", page_icon="💼", layout="wide")
+require_access()
 
 PHASE_LABELS = {"setup": "Set-up", "ongoing": "Annual"}
 SIZE_FACTORS = {"Large": 1.0, "Medium": 0.9, "Small": 0.75, "Micro": 0.5}
