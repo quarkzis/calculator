@@ -43,14 +43,59 @@ def money(value, *, eligible=True):
     return "TBC" if value is None or pd.isna(value) else f"£{value:,.2f}"
 
 
+def remember_control(widget_key, saved_key):
+    st.session_state["model_controls"][saved_key] = st.session_state[widget_key]
+
+
+def persistent_control(widget, *args, key, shared_key=None, **kwargs):
+    """Store model inputs separately from widgets that Streamlit may remove."""
+    saved = st.session_state.setdefault("model_controls", {})
+    saved_key = shared_key or key
+    if saved_key in saved:
+        if key not in st.session_state or st.session_state[key] != saved[saved_key]:
+            st.session_state[key] = saved[saved_key]
+        if widget == st.selectbox:
+            kwargs["index"] = None
+        elif widget == st.checkbox:
+            kwargs.pop("value", None)
+    value = widget(*args, key=key, on_change=remember_control,
+                   args=(key, saved_key), **kwargs)
+    saved[saved_key] = value
+    if widget == st.number_input and value is None:
+        st.info(f"Enter a value for {args[0]} to continue.")
+        st.stop()
+    return value
+
+
+def shared_controls():
+    """The workbook's shared controls remain active when their widgets are hidden."""
+    saved = st.session_state.setdefault("model_controls", {})
+    legality = saved.get("operator:legality", 50.0)
+    retained = saved.get("operator:retained", 55.0)
+    return {
+        "geolocation_enabled": saved.get("operator:geo", True),
+        "batch_dds": saved.get("operator:batch", 4.0),
+        "legality_share": None if legality is None else legality / 100.0,
+        "retained_legality_share": None if retained is None else retained / 100.0,
+        "apply_legality_to_setup": saved.get("operator:setup_legality", False),
+        "primary_complexity": saved.get("primary_complexity", 0.75),
+        "micro_ratio": saved.get("primary_micro_ratio", 1.0),
+    }
+
+
+def task_family(company):
+    return "operator" if company.startswith("operator_") else company
+
+
 def remember_task_day(company, code, role, widget_key):
     """Keep edits after widgets for a hidden company or period are removed."""
-    st.session_state["task_inputs"][company][code][role] = st.session_state[widget_key]
+    st.session_state["task_inputs"][task_family(company)][code][role] = st.session_state[widget_key]
 
 
 def get_company_task_inputs(company, tasks):
     st.session_state.setdefault("task_inputs", {})
-    saved = st.session_state["task_inputs"].setdefault(company, {})
+    families = st.session_state["task_inputs"]
+    saved = families.setdefault(task_family(company), families.get(company, {}))
     for task in tasks:
         values = saved.setdefault(task.code, {})
         for role in ROLES:
@@ -82,9 +127,8 @@ def render_task_inputs(company, tasks, period):
                 columns = st.columns(len(ROLES))
                 for column, role in zip(columns, ROLES):
                     widget_key = f"_days:{company}:{task.code}:{role}"
-                    if widget_key not in st.session_state:
-                        value = saved[task.code][role]
-                        st.session_state[widget_key] = None if value is None else float(value)
+                    value = saved[task.code][role]
+                    st.session_state[widget_key] = None if value is None else float(value)
                     with column:
                         st.number_input(
                             f"{role} days", min_value=0.0, value=None, step=0.25, format="%.2f",
@@ -157,8 +201,9 @@ def create_report_csv(settings, result, rates):
 
 st.title("EUDR Due Diligence Costs Calculator")
 st.caption("Phase 2 · Enter task days and daily rates to calculate company costs.")
+st.caption("Edits are kept while you switch company groups in this session. Size factors are shared by size; the two operator groups also share task days and Phase 2 controls.")
 st.header("Company and assumptions")
-company = st.selectbox(
+company = persistent_control(st.selectbox,
     "Company group", options=list(COMPANY_GROUPS),
     format_func=lambda key: COMPANY_GROUPS[key], key="company_group",
 )
@@ -167,73 +212,76 @@ is_primary = company == "primary"
 is_downstream = company.startswith("downstream_")
 company_columns = st.columns(2)
 with company_columns[0]:
-    size = st.selectbox("Business size", options=COMPANY_SIZES[company], key=f"size:{company}")
+    size = persistent_control(st.selectbox, "Business size", options=COMPANY_SIZES[company], key=f"size:{company}")
 with company_columns[1]:
     if is_operator or is_primary:
         risk_options = ["low", "standard_high"] if is_primary else ["standard_high", "low"]
-        risk = st.selectbox(
+        risk = persistent_control(st.selectbox,
             "Source-country risk", options=risk_options,
             format_func=lambda key: RISK_LABELS[key], key=f"risk:{company}",
         )
     else:
         risk = "standard_high"
 
-settings_values = {"company": company, "size": size, "risk": risk}
+settings_values = {**shared_controls(), "company": company, "size": size, "risk": risk}
+for name, default in (("defra_dd_setup", 0.75), ("defra_dd_annual", 0.75), ("defra_complexity", 1.0)):
+    settings_values[name] = st.session_state["model_controls"].get(name, default)
 if not is_primary and company != "downstream_non_sme":
-    settings_values["size_factor"] = st.number_input(
+    settings_values["size_factor"] = persistent_control(st.number_input,
         "Business size factor", min_value=0.0, value=SIZE_FACTORS[size],
-        step=0.05, format="%.2f", key=f"size_factor:{company}:{size}",
-        help="Applied once. A factor of 0.75 retains 75% of the company cost.",
+        step=0.05, format="%.2f", key=f"size_factor:{company}:{size}", shared_key=f"size_factor:{size}",
+        disabled=size == "Large",
+        help="Shared by all groups using this business size. Applied once. Large is fixed at 1, as in the workbook.",
     )
 
 if is_operator:
     left, right = st.columns(2)
     with left:
-        settings_values["geolocation_enabled"] = st.checkbox(
-            "Include geolocation costs", value=True, key=f"geo:{company}",
+        settings_values["geolocation_enabled"] = persistent_control(st.checkbox,
+            "Include geolocation costs", value=True, key=f"geo:{company}", shared_key="operator:geo",
         )
-        settings_values["batch_dds"] = st.number_input(
+        settings_values["batch_dds"] = persistent_control(st.number_input,
             "Average consignments per DDS", min_value=1.0, value=4.0,
-            step=1.0, format="%.2f", key=f"batch:{company}",
+            step=1.0, format="%.2f", key=f"batch:{company}", shared_key="operator:batch",
             help="Only variable annual DDS work is divided by this number. Fixed work remains.",
         )
-        legality = st.number_input(
+        legality = persistent_control(st.number_input,
             "Legality share of risk-assessment effort (%)", min_value=0.0,
-            max_value=100.0, value=50.0, step=1.0, key=f"legality:{company}",
+            max_value=100.0, value=50.0, step=1.0, key=f"legality:{company}", shared_key="operator:legality",
         )
-        retained = st.number_input(
+        retained = persistent_control(st.number_input,
             "Legality effort retained for land-use checks (%)", min_value=0.0,
-            max_value=100.0, value=55.0, step=1.0, key=f"retained:{company}",
+            max_value=100.0, value=55.0, step=1.0, key=f"retained:{company}", shared_key="operator:retained",
         )
         settings_values["legality_share"] = legality / 100.0
         settings_values["retained_legality_share"] = retained / 100.0
-        settings_values["apply_legality_to_setup"] = st.checkbox(
-            "Apply the legality reduction to set-up work", value=False, key=f"setup_legality:{company}",
+        settings_values["apply_legality_to_setup"] = persistent_control(st.checkbox,
+            "Apply the legality reduction to set-up work", value=False, key=f"setup_legality:{company}", shared_key="operator:setup_legality",
         )
         retained_total = 1 - (legality / 100) * (1 - retained / 100)
         st.caption(f"Combined Article 10 and 11 effort retained: {retained_total:.1%}. Low-risk cases exclude these tasks.")
     with right:
-        dd = st.selectbox("Existing due diligence", list(DD_OPTIONS), key=f"dd:{company}")
-        settings_values["dd_setup"] = st.number_input(
+        dd = persistent_control(st.selectbox, "Existing due diligence", list(DD_OPTIONS), key=f"dd:{company}")
+        settings_values["dd_setup"] = persistent_control(st.number_input,
             "Existing-DD factor: set-up", min_value=0.0, value=DD_OPTIONS[dd][0],
             step=0.05, format="%.2f", key=f"dd_setup:{company}:{dd}",
         )
-        settings_values["dd_annual"] = st.number_input(
+        settings_values["dd_annual"] = persistent_control(st.number_input,
             "Existing-DD factor: annual", min_value=0.0, value=DD_OPTIONS[dd][1],
             step=0.05, format="%.2f", key=f"dd_annual:{company}:{dd}",
         )
-        complexity = st.selectbox(
+        complexity = persistent_control(st.selectbox,
             "Supply-chain complexity", list(COMPLEXITY_OPTIONS), index=1, key=f"complexity_choice:{company}",
         )
-        settings_values["complexity"] = st.number_input(
+        settings_values["complexity"] = persistent_control(st.number_input,
             "Supply-chain complexity factor", min_value=0.0, value=COMPLEXITY_OPTIONS[complexity],
             step=0.05, format="%.2f", key=f"complexity_factor:{company}:{complexity}",
         )
-        commodity_choice = st.selectbox(
+        commodity_choice = persistent_control(st.selectbox,
             "Commodity cost multiplier", [1.0, 1.5, 2.0],
             format_func=lambda value: f"{value:g} × base cost", key=f"commodity_choice:{company}",
         )
-        settings_values["commodity"] = st.number_input(
+        settings_values["commodity"] = persistent_control(st.number_input,
             "Commodity factor", min_value=0.0, value=commodity_choice,
             step=0.1, format="%.2f", key=f"commodity_factor:{company}:{commodity_choice}",
         )
@@ -241,13 +289,13 @@ if is_operator:
 elif is_primary:
     primary_columns = st.columns(2)
     with primary_columns[0]:
-        settings_values["primary_complexity"] = st.number_input(
+        settings_values["primary_complexity"] = persistent_control(st.number_input,
             "Primary-producer complexity factor", min_value=0.0, value=0.75,
             step=0.05, format="%.2f", key="primary_complexity",
         )
     with primary_columns[1]:
         if size == "Micro":
-            settings_values["micro_ratio"] = st.number_input(
+            settings_values["micro_ratio"] = persistent_control(st.number_input,
                 "Micro cost relative to small", min_value=0.0, max_value=1.0, value=1.0,
                 step=0.05, format="%.2f", key="primary_micro_ratio",
                 help="1 uses the same task estimate. 0.75 is the optional sensitivity for a micro producer.",
@@ -258,12 +306,12 @@ elif is_downstream:
     reference_suppliers, reference_receipts = ((50, 400) if company == "downstream_non_sme" else (30, 200))
     volume_columns = st.columns(2)
     with volume_columns[0]:
-        settings_values["suppliers"] = st.number_input(
+        settings_values["suppliers"] = persistent_control(st.number_input,
             "Number of suppliers", min_value=0, value=reference_suppliers,
             step=1, key=f"suppliers:{company}",
         )
     with volume_columns[1]:
-        settings_values["receipts"] = st.number_input(
+        settings_values["receipts"] = persistent_control(st.number_input,
             "Receipts per year", min_value=0, value=reference_receipts,
             step=1, key=f"receipts:{company}",
         )
@@ -271,18 +319,18 @@ elif is_downstream:
         st.caption("Task days are estimated at these reference volumes. Supplier-record tasks scale with suppliers; reference-number capture scales with receipts.")
         reference_columns = st.columns(2)
         with reference_columns[0]:
-            settings_values["reference_suppliers"] = st.number_input(
+            settings_values["reference_suppliers"] = persistent_control(st.number_input,
                 "Reference suppliers", min_value=1, value=reference_suppliers,
                 step=1, key=f"reference_suppliers:{company}",
             )
         with reference_columns[1]:
-            settings_values["reference_receipts"] = st.number_input(
+            settings_values["reference_receipts"] = persistent_control(st.number_input,
                 "Reference receipts per year", min_value=1, value=reference_receipts,
                 step=1, key=f"reference_receipts:{company}",
             )
     st.caption("Other downstream tasks remain fixed. Existing-DD and commodity multipliers are 1.")
 
-settings_values["year3_efficiency"] = st.number_input(
+settings_values["year3_efficiency"] = persistent_control(st.number_input,
     "Annual efficiency reduction from year 3 (%)", min_value=0.0,
     max_value=100.0, value=10.0, step=1.0, key="year3_efficiency_percent",
     help="Applied once. A 10% reduction retains 90% of the annual cost from year 3 onwards.",
@@ -294,13 +342,19 @@ rate_columns = st.columns(3)
 day_rates = {}
 for index, role in enumerate(ROLES):
     with rate_columns[index % 3]:
-        day_rates[role] = st.number_input(
+        day_rates[role] = persistent_control(st.number_input,
             f"{ROLE_LABELS[role]} (£/day)", min_value=0.0,
             value=float(DEFAULT_DAY_RATES[role]), step=0.01, format="%.2f", key=f"rate:{role}",
         )
 
 st.header("Task days")
-st.caption("Enter person-days for each role. Set-up is one-off; annual is one year's effort. Enter 0 for no work, or clear a value to leave an estimate pending.")
+st.caption("Enter person-days before batching, legality, volume or scenario adjustments. Set-up is one-off; annual is one year's effort. Enter 0 for no work, or clear a value to leave an estimate pending.")
+if is_operator:
+    with st.expander("Which Excel days should I enter?"):
+        st.write("Use the original workload, before the Excel formulas apply adjustments. For example, enter 6 SO days for annual Article 10 work, not the 4.65 days after the default legality adjustment. For Article 9 set-up, enter the full 20 SO days and allocate 10 to geolocation below; do not enter the residual 10 as the full workload.")
+        st.write("Enter fixed and variable DDS days separately. The app divides only the variable days by consignments per DDS. The cost breakdown shows both input days and effective days so you can check each adjustment.")
+        if risk == "low":
+            st.write("Risk assessment and mitigation tasks are excluded for a low-risk country. Their estimates are retained for standard/high-risk cases; leaving them pending does not block this low-risk calculation.")
 period = st.radio("Show task period", ["Both periods", "Set-up only", "Annual only"], horizontal=True, key="task_period")
 tasks = get_tasks(company)
 task_days = render_task_inputs(company, tasks, period)
@@ -377,30 +431,49 @@ st.download_button(
 )
 
 with st.expander("Compare the three scenarios and Defra cases"):
-    st.caption("These are the workbook's three comparison scenarios and six Defra cases, using the current Phase 2 controls and daily rates. Task edits apply to the current group; both operator groups share their task list. Other groups use their default task estimates.")
+    st.caption("These are the workbook's three comparison scenarios and six Defra cases. All saved task edits, size factors, Phase 2 controls, daily rates and both downstream groups' volumes are included. The two operator groups share task days and Phase 2 controls.")
     st.caption("The three comparison scenarios retain their own existing-DD, complexity and commodity assumptions. The second includes a 10% year-3 reduction. The Defra cases use the factors below and the year-3 reduction entered above.")
     defra_columns = st.columns(3)
     with defra_columns[0]:
-        defra_dd_setup = st.number_input(
+        defra_dd_setup = persistent_control(st.number_input,
             "Defra existing-DD factor: set-up", min_value=0.0, value=0.75,
             step=0.05, format="%.2f", key="defra_dd_setup",
         )
     with defra_columns[1]:
-        defra_dd_annual = st.number_input(
+        defra_dd_annual = persistent_control(st.number_input,
             "Defra existing-DD factor: annual", min_value=0.0, value=0.75,
             step=0.05, format="%.2f", key="defra_dd_annual",
         )
     with defra_columns[2]:
-        defra_complexity = st.number_input(
+        defra_complexity = persistent_control(st.number_input,
             "Defra operator complexity factor", min_value=0.0, value=1.0,
             step=0.05, format="%.2f", key="defra_complexity",
         )
     comparison_settings = replace(
-        settings, defra_dd_setup=defra_dd_setup, defra_dd_annual=defra_dd_annual,
+        settings, **shared_controls(), defra_dd_setup=defra_dd_setup, defra_dd_annual=defra_dd_annual,
         defra_complexity=defra_complexity,
     )
+    all_task_days = {}
+    for group in COMPANY_GROUPS:
+        all_task_days.update(get_company_task_inputs(group, get_tasks(group)))
+    saved_controls = st.session_state["model_controls"]
+    company_settings = {
+        group: Settings(
+            company=group, size=COMPANY_SIZES[group][0],
+            **{name: saved_controls.get(f"{name}:{group}") for name in
+               ("suppliers", "receipts", "reference_suppliers", "reference_receipts")},
+        )
+        for group in ("downstream_non_sme", "downstream_sme")
+    }
+    shared_sizes = {
+        size: saved_controls.get(f"size_factor:{size}", default)
+        for size, default in SIZE_FACTORS.items()
+    }
     try:
-        scenarios = pd.DataFrame(build_scenario_table(day_rates=day_rates, task_days=task_days, settings=comparison_settings))
+        scenarios = pd.DataFrame(build_scenario_table(
+            day_rates=day_rates, task_days=all_task_days, settings=comparison_settings,
+            company_settings=company_settings, size_factors=shared_sizes,
+        ))
         scenario_output = scenarios.drop(columns=["case_id", "company"], errors="ignore")
         st.dataframe(
             scenario_output, use_container_width=True, hide_index=True,

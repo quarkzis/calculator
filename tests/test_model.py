@@ -235,3 +235,142 @@ def test_invalid_role_days_and_day_rates_are_rejected(invalid):
         calculate(Settings(), task_days={"OP_S1": {"SO": invalid}})
     with pytest.raises(ValueError):
         calculate(Settings(), day_rates={"SO": invalid})
+
+
+@pytest.mark.parametrize("task_code,affected_period", [
+    ("OP_S6", "setup"), ("OP_S7", "setup"),
+    ("OP_O5", "annual"), ("OP_O6", "annual"),
+])
+def test_low_risk_excludes_pending_risk_estimates_like_workbook(task_code, affected_period):
+    # Working N14/N15 and N23/N24 use IF(country factor=0,0,task cost),
+    # so a pending Article 10/11 estimate cannot make a low-risk cost TBC.
+    edits = {task_code: {role: None for role in ROLES}}
+    low = calculate(Settings(risk="low"), task_days=edits)
+    assert_value(low.setup, 54921.41563636363)
+    assert_value(low.annual, 25238.484818181816)
+    assert not low.missing_inputs
+    excluded = [row for row in low.details if row["code"] == task_code]
+    assert all(row["input_days"] is None and row["effective_days"] == 0
+               and row["final_cost"] == 0 for row in excluded)
+    assert_detail_totals(low)
+    high = calculate(Settings(), task_days=edits)
+    assert getattr(high, affected_period) is None
+    assert len(high.missing_inputs) == len(ROLES)
+    table = build_scenario_table(task_days=edits)
+    low_rows = [row for row in table if row["company"].startswith("operator_") and row["Risk"] == "Low"]
+    assert low_rows and all(row["Status"] == "Calculated" for row in low_rows)
+    high_rows = [row for row in table if row["company"].startswith("operator_") and row["Risk"] != "Low"]
+    assert high_rows and all(row["Status"] == "TBC" for row in high_rows)
+
+
+@pytest.mark.parametrize("settings,task_code", [
+    (Settings(risk="low", size_factor=0), "OP_S1"),
+    (Settings(dd_setup=0), "OP_S1"),
+    (Settings(legality_share=1, retained_legality_share=0), "OP_O5"),
+    (Settings(geolocation_enabled=False), "OP_S_GEO"),
+    (Settings(company="downstream_non_sme", suppliers=0), "DN_S1"),
+])
+def test_zero_multiplier_does_not_resolve_a_pending_included_task(settings, task_code):
+    result = calculate(settings, task_days={task_code: {"SO": None}})
+    assert result.missing_inputs == (f"{task_code}: SO days",)
+    assert result.total is None
+    assert_detail_totals(result)
+
+
+@pytest.mark.parametrize("phase,period", [("S", "setup"), ("O", "annual")])
+def test_geolocation_off_excludes_its_row_but_still_needs_the_pool_allocation(phase, period):
+    result = calculate(Settings(geolocation_enabled=False),
+                       task_days={f"OP_{phase}_GEO": {"SO": None}})
+    geo = next(row for row in result.details if row["code"] == f"OP_{phase}_GEO" and row["role"] == "SO")
+    pool = next(row for row in result.details if row["code"] == f"OP_{phase}_INFO" and row["role"] == "SO")
+    # Cost D12/D22 is 0 via the switch, but D11/D21 needs the allocation
+    # to subtract it from the information pool even when geo is excluded.
+    assert geo["input_days"] is None
+    assert geo["effective_days"] == geo["base_cost"] == geo["final_cost"] == 0
+    assert pool["effective_days"] is None and pool["final_cost"] is None
+    assert getattr(result, period) is None
+    assert getattr(result, "geo_setup" if phase == "S" else "geo_annual") is None
+    assert result.missing_inputs == (f"OP_{phase}_GEO: SO days",)
+    assert_detail_totals(result)
+
+
+def test_custom_current_size_factor_is_shared_by_all_relevant_comparison_rows():
+    settings = Settings(company="operator_small_micro", size="Small", size_factor=0.6,
+                        complexity=2, commodity=2)
+    table = build_scenario_table(settings=settings)
+    lookup = {(row["case_id"], row["company"], row["Size"].lower()): row for row in table}
+    for case in SCENARIOS:
+        row = lookup[case["case_id"], case["group"], case["size"]]
+        ratio = 0.6 / 0.75 if case["size"] == "small" and case["group"] in (
+            "operator_small_micro", "downstream_sme",
+        ) else 1
+        for field, column in TABLE_FIELDS.items():
+            expected = case["expected"][field]
+            assert_value(row[column], expected if expected == "N/A" else expected * ratio)
+    first = lookup["comparison_1", "operator_small_micro", "small"]
+    assert_value(first["Setup (£)"], 189076.72145454545)
+    assert_value(first["Annual (£)"], 81465.59425636363)
+    assert_value(calculate(settings).setup, first["Setup (£)"])
+
+
+@pytest.mark.parametrize("shared_sizes", [
+    {"Large": 0.8, "Medium": 0.7, "Small": 0.6, "Micro": 0.25},
+    {"Large": 0, "Medium": 0, "Small": 0, "Micro": 0},
+])
+def test_explicit_size_factors_apply_to_comparison_and_defra_without_scaling_exempt_groups(shared_sizes):
+    # Explicit workbook factors supersede the selected company's custom value.
+    table = build_scenario_table(settings=Settings(size_factor=0.123), size_factors=shared_sizes)
+    lookup = {(row["case_id"], row["company"], row["Size"].lower()): row for row in table}
+    original_sizes = {"large": 1, "medium": 0.9, "small": 0.75, "micro": 0.5}
+    for case in SCENARIOS:
+        row = lookup[case["case_id"], case["group"], case["size"]]
+        ratio = 1 if case["group"] in ("primary", "downstream_non_sme") else (
+            shared_sizes[case["size"].title()] / original_sizes[case["size"]]
+        )
+        for field, column in TABLE_FIELDS.items():
+            expected = case["expected"][field]
+            assert_value(row[column], expected if expected == "N/A" else expected * ratio)
+
+
+def test_comparison_keeps_task_edits_and_volumes_for_all_company_families():
+    # Independent worksheet sensitivity totals: double supplier and receipt
+    # ratios together, using non-default reference counts for both groups.
+    company_settings = {
+        "downstream_non_sme": Settings(company="downstream_non_sme", suppliers=80,
+            reference_suppliers=40, receipts=600, reference_receipts=300,
+            geolocation_enabled=False, batch_dds=99, primary_complexity=9),
+        "downstream_sme": Settings(company="downstream_sme", size="Medium", suppliers=40,
+            reference_suppliers=20, receipts=300, reference_receipts=150,
+            geolocation_enabled=False, batch_dds=99),
+    }
+    edits = {"OP_S1": {"SO": 31}, "P_S1": {"SO": 2},
+             "DN_S1": {"SO": 3}, "DS_S1": {"SO": 2.5}}
+    table = build_scenario_table(task_days=edits, company_settings=company_settings)
+    lookup = {(r["case_id"], r["company"], r["Size"]): r for r in table}
+    so_rate = 46262 * 1.22 / 220
+    operator = lookup["comparison_1", "operator_large_medium", "Large"]
+    assert_value(operator["Setup (£)"], 315127.8690909091 + so_rate * 4)
+    assert_value(operator["Annual (£)"], 135775.9904272727)
+    primary = lookup["comparison_2", "primary", "Small"]
+    assert_value(primary["Setup (£)"], 676.5426818181818 + so_rate * 2 * 0.75)
+    for case_id in ("comparison_1", "comparison_2", "comparison_3", "defra_1", "defra_6"):
+        non_sme = lookup[case_id, "downstream_non_sme", "Large"]
+        sme = lookup[case_id, "downstream_sme", "Medium"]
+        assert_value(non_sme["Setup (£)"], 7966.166318181818 + so_rate * 2)
+        assert_value(non_sme["Annual (£)"], 6686.642545454545)
+        assert_value(sme["Setup (£)"], (2984.646818181818 + so_rate * 2) * 0.9)
+        assert_value(sme["Annual (£)"], 3016.436136363636 * 0.9)
+    # Selecting another company cannot change the saved workbook comparison.
+    selected_other = Settings(company="primary", size="Small", risk="low")
+    assert table == build_scenario_table(task_days=edits, settings=selected_other,
+                                        company_settings=company_settings)
+
+
+@pytest.mark.parametrize("kwargs", [
+    {"size_factors": {"Small": -1}}, {"size_factors": {"Small": float("nan")}},
+    {"size_factors": {"Unknown": 1}}, {"company_settings": {"unknown": Settings()}},
+    {"company_settings": {"downstream_sme": {"suppliers": 20}}},
+])
+def test_invalid_shared_comparison_inputs_are_rejected(kwargs):
+    with pytest.raises(ValueError):
+        build_scenario_table(**kwargs)

@@ -165,6 +165,10 @@ def test_defra_controls_change_comparison_cases_without_changing_current_cost(ap
     at.number_input(key="defra_complexity").set_value(1.25).run()
     assert_cost(at, 78781.96727272727, 33943.99760681818)
     assert_report_matches_screen(at, downloads)
+    exported_settings = {row["Item"]: row["Value"] for row in report_rows(downloads) if row["Section"] == "Settings"}
+    assert float(exported_settings["defra_dd_setup"]) == 0.5
+    assert float(exported_settings["defra_dd_annual"]) == 0.6
+    assert float(exported_settings["defra_complexity"]) == 1.25
     table = at.dataframe[-1].value
     operator = table.loc[(table["Company"] == "Operator (large / medium)") & (table["Size"] == "Large")]
     defra = operator.loc[operator["Scenario"] == "Defra low risk, commodity factor 1"].iloc[0]

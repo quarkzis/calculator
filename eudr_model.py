@@ -196,9 +196,11 @@ def calculate(settings: Settings, day_rates: Mapping | None = None, task_days: M
     inputs = {t.code: {role: overrides.get(t.code, {}).get(role, t.days[role]) for role in ROLES} for t in tasks}
     missing = []
     for t in tasks:
+        excluded_risk = t.mechanism == 'risk' and s.risk == 'low'
         for role, value in inputs[t.code].items():
             if value is None:
-                missing.append(f'{t.code}: {role} days')
+                if not excluded_risk:
+                    missing.append(f'{t.code}: {role} days')
             else:
                 _number(value, f'{t.code}: {role} days')
     if operator:
@@ -225,7 +227,13 @@ def calculate(settings: Settings, day_rates: Mapping | None = None, task_days: M
             if task.mechanism == 'information_pool':
                 allocation = inputs['OP_S_GEO' if task.phase == 'setup' else 'OP_O_GEO'][role]
                 days = None if days is None or allocation is None else days - allocation
-            effective = None if days is None else days * multiplier
+            # Explicit workbook IF switches exclude these task rows even if
+            # their estimates are pending. A missing geolocation allocation
+            # still leaves the information-pool subtraction pending above.
+            # Other zero factors do not resolve an included pending task.
+            excluded_risk = task.mechanism == 'risk' and s.risk == 'low'
+            excluded_geo = task.mechanism == 'geolocation' and not s.geolocation_enabled
+            effective = 0.0 if excluded_risk or excluded_geo else (None if days is None else days * multiplier)
             cost = None if effective is None else effective * rates[role]
             final = None if cost is None else cost * scenario_factors[task.phase]
             details.append({
@@ -249,35 +257,65 @@ def calculate(settings: Settings, day_rates: Mapping | None = None, task_days: M
     )
 
 
-def build_scenario_table(day_rates=None, task_days=None, settings: Settings | None = None) -> list[dict]:
+def build_scenario_table(
+    day_rates=None, task_days=None, settings: Settings | None = None, *,
+    company_settings: Mapping[str, Settings] | None = None,
+    size_factors: Mapping[str, float] | None = None,
+) -> list[dict]:
     """Reproduce the workbook's three comparison and six Defra profiles.
 
-    Shared Phase 2 controls and task edits are retained. Each profile supplies its
-    own DD/commodity/complexity assumptions; Defra controls are independent of the
-    currently selected company's custom scenario. Volumes edited for one group
-    do not leak into the other downstream group.
+    ``settings`` supplies shared Phase 2 controls and Defra assumptions. Each
+    comparison profile supplies its own DD/commodity/complexity assumptions.
+    ``task_days`` may contain edits for every task family simultaneously.
+
+    ``company_settings`` supplies only the downstream volumes and reference
+    volumes, keyed by company group. Unspecified groups retain the previous
+    behavior: the selected group's volumes, or defaults for other groups.
+    Other fields in these per-company settings do not override shared controls.
+
+    ``size_factors`` overrides workbook size factors across every applicable
+    group; omitted sizes retain their defaults. If the mapping is omitted,
+    ``settings.size_factor`` overrides the selected size across groups. Primary
+    and non-SME downstream costs retain their separate size treatment.
     """
     current = settings or Settings()
     for attr in ('defra_dd_setup', 'defra_dd_annual', 'defra_complexity'):
         _number(getattr(current, attr), attr.replace('_', ' ').title())
+    per_company = company_settings or {}
+    for group, company_setting in per_company.items():
+        if group not in COMPANY_GROUPS or not isinstance(company_setting, Settings):
+            raise ValueError('Company settings must map valid company groups to Settings.')
+    shared_sizes = dict(SIZE_FACTORS)
+    if size_factors is None:
+        if current.size_factor is not None:
+            if current.size not in shared_sizes:
+                raise ValueError('Select a valid business size.')
+            shared_sizes[current.size] = _number(current.size_factor, 'Business size factor')
+    else:
+        for size, factor in size_factors.items():
+            if size not in shared_sizes:
+                raise ValueError('Size factors must use Large, Medium, Small or Micro.')
+            shared_sizes[size] = _number(factor, f'{size} business size factor')
     rows = []
     for case in _INPUTS['scenario_definitions']:
         defra = case['mode'] == 'defra'
         label = ('Defra ' + ('low' if case['risk'] == 'low' else 'standard/high') + f" risk, commodity factor {case['commodity_factor']:g}") if defra else 'Comparison ' + case['id'].rsplit('_', 1)[1]
         for group, sizes in COMPANY_SIZES.items():
             for size in sizes:
-                same_group = group == current.company
+                volume_settings = per_company.get(group)
+                if volume_settings is None and group == current.company:
+                    volume_settings = current
                 scenario = replace(
                     current, company=group, size=size,
                     risk='low' if case['risk'] == 'low' else 'standard_high',
                     dd_setup=current.defra_dd_setup if defra else case['dd_setup'],
                     dd_annual=current.defra_dd_annual if defra else case['dd_ongoing'],
                     complexity=current.defra_complexity if defra else case['operator_complexity'],
-                    commodity=case['commodity_factor'], size_factor=None,
-                    suppliers=current.suppliers if same_group else None,
-                    receipts=current.receipts if same_group else None,
-                    reference_suppliers=current.reference_suppliers if same_group else None,
-                    reference_receipts=current.reference_receipts if same_group else None,
+                    commodity=case['commodity_factor'], size_factor=shared_sizes[size],
+                    suppliers=volume_settings.suppliers if volume_settings is not None else None,
+                    receipts=volume_settings.receipts if volume_settings is not None else None,
+                    reference_suppliers=volume_settings.reference_suppliers if volume_settings is not None else None,
+                    reference_receipts=volume_settings.reference_receipts if volume_settings is not None else None,
                     year3_efficiency=(current.year3_efficiency if defra else 0.1) if case['year3_applies'] else None,
                 )
                 result = calculate(scenario, day_rates, task_days)

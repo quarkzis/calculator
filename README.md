@@ -61,13 +61,26 @@ source code and packaged model inputs.
    have their own complexity and optional micro sensitivity. Downstream groups
    use supplier and receipt counts instead of the operator discounts.
 3. Review the daily rates and edit task days as needed. A blank task estimate
-   stays pending; zero means no work. Switching the visible task period does not
-   discard the estimates for the other period.
+   stays pending when the task is required; zero means no work. Low-risk cases
+   exclude Article 10/11 tasks even if their estimates are pending.
+   Enter days **before** batching, legality, volume or scenario adjustments.
+   For example, annual Article 10 SO work starts at 6 days, not the 4.65 days
+   displayed after the workbook's default legality factor. Article 9 uses the
+   full information workload and a separate geolocation allocation.
+   Switching company, size or visible task period keeps edits in this session.
 4. Read setup, annual and year-3 costs, then download the CSV. The combined
    total is **setup plus one annual cost**, not a three-year cumulative total.
    Detailed final costs and charts include the same factors as the totals.
 5. Expand the scenario comparison to view the three comparison cases and six
-   Defra cases with the current rates and Phase 2 controls.
+   Defra cases with all saved edits across company groups, current rates and
+   Phase 2 controls. Both downstream groups retain their own supplier/receipt
+   counts and reference volumes. The two operator groups share task estimates,
+   geolocation, batching and legality controls, as in the workbook.
+   Small, Micro and Medium size factors are shared across applicable groups;
+   Large remains fixed at 1. Primary complexity and the Micro/Small sensitivity
+   remain active in the comparison when another group or size is selected.
+   The three comparison profiles keep their specified DD, complexity and
+   commodity assumptions; the main result uses the current company's choices.
 
 ## Defaults and model rules
 
@@ -120,4 +133,8 @@ python -m pytest
 ```
 
 The tests compare the calculation engine with those workbook fixtures and use
-Streamlit AppTest to exercise input changes, pending estimates and CSV totals.
+Streamlit AppTest to exercise input changes, pending estimates, switching groups
+and CSV totals. Regression cases include custom size factors in comparisons,
+excluded tasks with pending inputs, shared operator inputs, and simultaneous
+edits across groups. Independent recalculation of the reference XLSX also checks
+combinations of controls against the app without relying on saved fixtures.
