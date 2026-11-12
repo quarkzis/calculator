@@ -38,6 +38,11 @@ COMPANY_SIZES = {
 }
 SIZE_FACTORS = {'Large': 1.0, 'Medium': 0.9, 'Small': 0.75, 'Micro': 0.5}
 REFERENCE_VOLUMES = {'downstream_non_sme': (50, 400), 'downstream_sme': (30, 200)}
+_SCENARIOS = {case['id']: case for case in _INPUTS['scenario_definitions']}
+SCENARIO_LABELS = {
+    case_id: ('Scenario ' if case['mode'] == 'comparison' else 'Defra ') + case_id.rsplit('_', 1)[1]
+    for case_id, case in _SCENARIOS.items()
+}
 
 
 @dataclass(frozen=True)
@@ -75,6 +80,79 @@ class Settings:
     defra_dd_setup: float = 0.75
     defra_dd_annual: float = 0.75
     defra_complexity: float = 1.0
+
+
+def apply_scenario(settings: Settings, scenario_id: str) -> Settings:
+    """Apply one workbook profile without changing task or shared Phase 2 inputs.
+
+    Keep the original settings for the comparison table: the returned settings
+    contain this profile's year-3 applicability, not the saved Defra reduction.
+    ``working_base`` returns costs before Section 4 factors, while retaining
+    batching, legality, geolocation and downstream volume adjustments.
+    """
+    if scenario_id == 'custom':
+        return settings
+    if scenario_id == 'working_base':
+        return replace(
+            settings, dd_setup=1.0, dd_annual=1.0, complexity=1.0,
+            commodity=1.0, size_factor=1.0, primary_complexity=1.0,
+            micro_ratio=1.0, year3_efficiency=None,
+        )
+    if scenario_id not in _SCENARIOS:
+        raise ValueError('Select a valid workbook scenario.')
+    case = _SCENARIOS[scenario_id]
+    defra = case['mode'] == 'defra'
+    return replace(
+        settings,
+        risk='low' if case['risk'] == 'low' else 'standard_high',
+        dd_setup=settings.defra_dd_setup if defra else case['dd_setup'],
+        dd_annual=settings.defra_dd_annual if defra else case['dd_ongoing'],
+        complexity=settings.defra_complexity if defra else case['operator_complexity'],
+        commodity=case['commodity_factor'],
+        year3_efficiency=(settings.year3_efficiency if defra else 0.1) if case['year3_applies'] else None,
+    )
+
+
+def workbook_reference(scenario_id: str, company: str, size: str, risk: str = 'standard_high') -> dict:
+    """Return exact source cells for the selected workbook case.
+
+    A None field means there is no single matching output cell. Named scenarios
+    still reference cells containing N/A so their applicability can be checked.
+    """
+    if company not in COMPANY_SIZES or size not in COMPANY_SIZES[company]:
+        raise ValueError('Select a valid company group and business size.')
+    if risk not in ('low', 'standard_high'):
+        raise ValueError('Country risk must be low or standard/high.')
+    fields = ('setup', 'annual', 'annual_year3', 'total')
+    empty = {'sheet': None, **dict.fromkeys(fields)}
+    if scenario_id == 'custom':
+        return empty
+    if scenario_id == 'working_base':
+        if company == 'primary' and risk != 'low':
+            return empty
+        columns = {
+            'operator_large_medium': 'N' if risk == 'low' else 'I',
+            'operator_small_micro': 'O' if risk == 'low' else 'J',
+            'primary': 'K', 'downstream_non_sme': 'L', 'downstream_sme': 'M',
+        }
+        column = columns[company]
+        return {**empty, 'sheet': 'Working_table (Phase 2)',
+                'setup': f'{column}17', 'annual': f'{column}27'}
+    if scenario_id not in _SCENARIOS:
+        raise ValueError('Select a valid workbook scenario.')
+    offset = COMPANY_SIZES[company].index(size)
+    if company in ('operator_small_micro', 'primary'):
+        offset += 1
+    row = _SCENARIOS[scenario_id]['row'] + offset
+    columns = {
+        'operator_large_medium': ('D', 'E', 'F', 'G'),
+        'operator_small_micro': ('I', 'J', 'K', 'L'),
+        'primary': ('N', 'O', 'P', 'Q'),
+        'downstream_non_sme': ('R', 'S', 'T', 'U'),
+        'downstream_sme': ('W', 'X', 'Y', 'Z'),
+    }
+    return {'sheet': 'All_company_Scenarios (Phase 2)',
+            **{field: f'{column}{row}' for field, column in zip(fields, columns[company])}}
 
 
 @dataclass
@@ -305,19 +383,15 @@ def build_scenario_table(
                 volume_settings = per_company.get(group)
                 if volume_settings is None and group == current.company:
                     volume_settings = current
-                scenario = replace(
+                company_inputs = replace(
                     current, company=group, size=size,
-                    risk='low' if case['risk'] == 'low' else 'standard_high',
-                    dd_setup=current.defra_dd_setup if defra else case['dd_setup'],
-                    dd_annual=current.defra_dd_annual if defra else case['dd_ongoing'],
-                    complexity=current.defra_complexity if defra else case['operator_complexity'],
-                    commodity=case['commodity_factor'], size_factor=shared_sizes[size],
+                    size_factor=shared_sizes[size],
                     suppliers=volume_settings.suppliers if volume_settings is not None else None,
                     receipts=volume_settings.receipts if volume_settings is not None else None,
                     reference_suppliers=volume_settings.reference_suppliers if volume_settings is not None else None,
                     reference_receipts=volume_settings.reference_receipts if volume_settings is not None else None,
-                    year3_efficiency=(current.year3_efficiency if defra else 0.1) if case['year3_applies'] else None,
                 )
+                scenario = apply_scenario(company_inputs, case['id'])
                 result = calculate(scenario, day_rates, task_days)
                 rows.append({
                     'case_id': case['id'], 'Scenario': label, 'Company': COMPANY_GROUPS[group], 'company': group, 'Size': size,

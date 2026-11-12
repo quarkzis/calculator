@@ -24,7 +24,7 @@ DS_SETUP = 2436.656090909091
 DS_ANNUAL = 1769.061
 
 
-def scenario(at, company, size, name="Comparison 2"):
+def scenario(at, company, size, name="Scenario 2"):
     assert not at.exception
     table = at.dataframe[-1].value
     match = table.loc[
@@ -36,7 +36,7 @@ def scenario(at, company, size, name="Comparison 2"):
     return match.iloc[0]
 
 
-def assert_scenario(at, company, size, setup, annual, name="Comparison 2"):
+def assert_scenario(at, company, size, setup, annual, name="Scenario 2"):
     row = scenario(at, company, size, name)
     assert row["Setup (£)"] == pytest.approx(setup, abs=1e-7)
     assert row["Annual (£)"] == pytest.approx(annual, abs=1e-7)
@@ -56,7 +56,7 @@ def test_operator_task_edits_are_shared_and_survive_switching_groups(app):
     at.number_input(key=f"_days:{small}:OP_S1:SO").set_value(32.0).run()
     at.selectbox(key="company_group").set_value("primary").run()
     assert_scenario(at, "Operator (large / medium)", "Large",
-                    (OP_SETUP + 2 * SO) * 4, OP_ANNUAL * 4, "Comparison 1")
+                    (OP_SETUP + 2 * SO) * 4, OP_ANNUAL * 4, "Scenario 1")
 
     at.selectbox(key="company_group").set_value(large).run()
     assert at.number_input(key=f"_days:{large}:OP_S1:SO").value == 32
@@ -86,7 +86,7 @@ def test_operator_controls_remain_shared_when_hidden(app):
 
     at.selectbox(key="company_group").set_value("primary").run()
     assert_scenario(at, "Operator (large / medium)", "Large",
-                    setup * 4, annual * 4, "Comparison 1")
+                    setup * 4, annual * 4, "Scenario 1")
     small = "operator_small_micro"
     at.selectbox(key="company_group").set_value(small).run()
     assert not at.checkbox(key=f"geo:{small}").value
@@ -134,10 +134,10 @@ def test_custom_size_factor_changes_comparisons_and_other_groups(app):
     at.number_input(key=f"size_factor:{group}:Small").set_value(0.6).run()
     assert_cost(at, OP_SETUP * 0.6, OP_ANNUAL * 0.6)
     assert_scenario(at, "Operator (small / micro)", "Small",
-                    OP_SETUP * 4 * 0.6, OP_ANNUAL * 4 * 0.6, "Comparison 1")
+                    OP_SETUP * 4 * 0.6, OP_ANNUAL * 4 * 0.6, "Scenario 1")
     assert_scenario(at, "Operator (small / micro)", "Small",
                     OP_SETUP * 0.75 * 0.6, OP_ANNUAL * 0.75 * 0.6,
-                    "Defra standard/high risk, commodity factor 1")
+                    "Defra 4")
     assert_scenario(at, "Downstream (SME)", "Small", DS_SETUP * 0.6, DS_ANNUAL * 0.6)
 
     at.selectbox(key="company_group").set_value("downstream_sme").run()
@@ -146,7 +146,7 @@ def test_custom_size_factor_changes_comparisons_and_other_groups(app):
     assert_cost(at, DS_SETUP * 0.6, DS_ANNUAL * 0.6)
     at.number_input(key="size_factor:downstream_sme:Small").set_value(0.0).run()
     assert_cost(at, 0, 0)
-    assert_scenario(at, "Operator (small / micro)", "Small", 0, 0, "Comparison 1")
+    assert_scenario(at, "Operator (small / micro)", "Small", 0, 0, "Scenario 1")
     assert_report_matches_screen(at, downloads)
 
 
@@ -198,7 +198,7 @@ def test_blank_excluded_risk_tasks_do_not_block_low_risk_outputs(app):
     summary = {r["Item"]: r["Value"] for r in report_rows(downloads) if r["Section"] == "Summary"}
     assert summary["Status"] == "Complete"
     assert scenario(at, "Operator (large / medium)", "Large")["Status"] == "Calculated"
-    assert scenario(at, "Operator (large / medium)", "Large", "Comparison 1")["Status"] == "TBC"
+    assert scenario(at, "Operator (large / medium)", "Large", "Scenario 1")["Status"] == "TBC"
     assert_report_matches_screen(at, downloads)
 
     at.selectbox(key=f"risk:{group}").set_value("standard_high").run()

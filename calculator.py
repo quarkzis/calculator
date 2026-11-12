@@ -13,7 +13,8 @@ import streamlit as st
 from access_control import require_access
 from eudr_model import (
     COMPANY_GROUPS, COMPANY_SIZES, DEFAULT_DAY_RATES, ROLES, ROLE_LABELS,
-    Settings, build_scenario_table, calculate, get_tasks,
+    SCENARIO_LABELS, Settings, apply_scenario, build_scenario_table, calculate,
+    get_tasks, workbook_reference,
 )
 
 
@@ -29,6 +30,20 @@ DD_OPTIONS = {
 }
 COMPLEXITY_OPTIONS = {"Simple": 0.75, "Standard": 1.0, "Complex": 2.0}
 RISK_LABELS = {"standard_high": "Standard / high risk", "low": "Low risk"}
+SCENARIO_OPTIONS = {
+    "defra_4": "Defra 4 — standard/high risk, commodity factor 1",
+    "comparison_1": "Scenario 1 — high risk, complex supply chain, 8 commodities",
+    "comparison_2": "Scenario 2 — low risk, simple supply chain, 1 commodity",
+    "comparison_3": "Scenario 3 — standard risk, standard supply chain, 4 commodities",
+    "defra_1": "Defra 1 — low risk, commodity factor 1",
+    "defra_2": "Defra 2 — low risk, commodity factor 1.5",
+    "defra_3": "Defra 3 — low risk, commodity factor 2",
+    "defra_5": "Defra 5 — standard/high risk, commodity factor 1.5",
+    "defra_6": "Defra 6 — standard/high risk, commodity factor 2",
+    "working_base": "Working-table base — before Section 4 scenario factors",
+    "custom": "Custom assumptions",
+}
+DISPLAY_SCENARIOS = {**SCENARIO_LABELS, "working_base": "Working-table base", "custom": "Custom assumptions"}
 DETAIL_COLUMNS = {
     "code": "Task code", "task": "Task", "phase": "Period", "role": "Role",
     "input_days": "Input days", "effective_days": "Effective days", "day_rate": "Day rate (£)",
@@ -150,7 +165,7 @@ def readable_missing(text, tasks):
     return text
 
 
-def create_report_csv(settings, result, rates):
+def create_report_csv(settings, result, rates, scenario_id, reference):
     """Export summary and cost detail with the same final costs as the screen."""
     output = StringIO()
     columns = [
@@ -165,6 +180,11 @@ def create_report_csv(settings, result, rates):
         writer.writerow({"Section": section, "Item": item, "Value": value, **other})
 
     write("Summary", "Calculation date", date.today().isoformat())
+    write("Summary", "Scenario", DISPLAY_SCENARIOS[scenario_id])
+    write("Summary", "Excel sheet", reference["sheet"] or "No predefined workbook scenario")
+    for label, field in (("set-up", "setup"), ("annual", "annual"),
+                         ("year-3", "annual_year3"), ("combined-total", "total")):
+        write("Summary", f"Excel {label} cell", reference[field] or "N/A")
     write("Summary", "Company group", COMPANY_GROUPS[settings.company])
     write("Summary", "Business size", settings.size)
     write("Summary", "Status", "N/A" if not result.eligible else ("TBC" if result.missing_inputs else "Complete"))
@@ -175,7 +195,10 @@ def create_report_csv(settings, result, rates):
         ("Annual cost from year 3 GBP", result.annual_year3),
         ("Set-up plus one annual cost GBP", result.total),
     ]:
-        write("Summary", label, value if value is not None else ("TBC" if result.eligible else "N/A"))
+        applicable = result.eligible and not (
+            label == "Annual cost from year 3 GBP" and settings.year3_efficiency is None
+        )
+        write("Summary", label, value if value is not None else ("TBC" if applicable else "N/A"))
     for name, value in asdict(settings).items():
         write("Settings", name, "" if value is None else value)
     for role in ROLES:
@@ -202,6 +225,37 @@ def create_report_csv(settings, result, rates):
 st.title("EUDR Due Diligence Costs Calculator")
 st.caption("Phase 2 · Enter task days and daily rates to calculate company costs.")
 st.caption("Edits are kept while you switch company groups in this session. Size factors are shared by size; the two operator groups also share task days and Phase 2 controls.")
+st.header("Scenario")
+scenario_id = persistent_control(st.selectbox, "Excel scenario", options=list(SCENARIO_OPTIONS),
+    format_func=SCENARIO_OPTIONS.get, key="scenario_id")
+is_named_scenario = scenario_id in SCENARIO_LABELS
+is_working_base = scenario_id == "working_base"
+if is_working_base:
+    st.info("This is the Working_table base, not a row in All_company_Scenarios. Phase 2 controls such as batching and legality still apply; Section 4 scenario factors do not. The workbook does not define a year-3 figure for this base.")
+elif scenario_id == "custom":
+    st.caption("Choose your own risk and scenario factors. These results do not identify a predefined row in the workbook.")
+else:
+    st.caption("The selected workbook scenario sets country risk, operator DD, complexity, commodity factors and year-3 treatment. Shared task days, rates and Phase 2 controls remain editable. Choose Custom assumptions to use different scenario factors.")
+with st.expander("Defra assumptions and year 3"):
+    st.caption("The DD and complexity factors below apply to Defra 1–6. The year-3 reduction applies to Defra and Custom assumptions. Scenario 2 uses 10%; Scenarios 1 and 3 show N/A for year 3.")
+    defra_columns = st.columns(3)
+    with defra_columns[0]:
+        defra_dd_setup = persistent_control(st.number_input,
+            "Defra existing-DD factor: set-up", min_value=0.0, value=0.75,
+            step=0.05, format="%.2f", key="defra_dd_setup")
+    with defra_columns[1]:
+        defra_dd_annual = persistent_control(st.number_input,
+            "Defra existing-DD factor: annual", min_value=0.0, value=0.75,
+            step=0.05, format="%.2f", key="defra_dd_annual")
+    with defra_columns[2]:
+        defra_complexity = persistent_control(st.number_input,
+            "Defra operator complexity factor", min_value=0.0, value=1.0,
+            step=0.05, format="%.2f", key="defra_complexity")
+    shared_year3_efficiency = persistent_control(st.number_input,
+        "Annual efficiency reduction from year 3 (%)", min_value=0.0,
+        max_value=100.0, value=10.0, step=1.0, key="year3_efficiency_percent",
+        help="Used by Defra and Custom assumptions. A 10% reduction retains 90% of annual cost.",
+    ) / 100.0
 st.header("Company and assumptions")
 company = persistent_control(st.selectbox,
     "Company group", options=list(COMPANY_GROUPS),
@@ -214,7 +268,11 @@ company_columns = st.columns(2)
 with company_columns[0]:
     size = persistent_control(st.selectbox, "Business size", options=COMPANY_SIZES[company], key=f"size:{company}")
 with company_columns[1]:
-    if is_operator or is_primary:
+    if is_named_scenario:
+        risk = apply_scenario(Settings(), scenario_id).risk
+        st.write(f"Source-country risk: **{RISK_LABELS[risk]}**")
+        st.caption(f"Set by {DISPLAY_SCENARIOS[scenario_id]}.")
+    elif is_operator or is_primary:
         risk_options = ["low", "standard_high"] if is_primary else ["standard_high", "low"]
         risk = persistent_control(st.selectbox,
             "Source-country risk", options=risk_options,
@@ -224,9 +282,9 @@ with company_columns[1]:
         risk = "standard_high"
 
 settings_values = {**shared_controls(), "company": company, "size": size, "risk": risk}
-for name, default in (("defra_dd_setup", 0.75), ("defra_dd_annual", 0.75), ("defra_complexity", 1.0)):
-    settings_values[name] = st.session_state["model_controls"].get(name, default)
-if not is_primary and company != "downstream_non_sme":
+settings_values.update(defra_dd_setup=defra_dd_setup, defra_dd_annual=defra_dd_annual,
+                       defra_complexity=defra_complexity, year3_efficiency=shared_year3_efficiency)
+if not is_working_base and not is_primary and company != "downstream_non_sme":
     settings_values["size_factor"] = persistent_control(st.number_input,
         "Business size factor", min_value=0.0, value=SIZE_FACTORS[size],
         step=0.05, format="%.2f", key=f"size_factor:{company}:{size}", shared_key=f"size_factor:{size}",
@@ -261,32 +319,39 @@ if is_operator:
         retained_total = 1 - (legality / 100) * (1 - retained / 100)
         st.caption(f"Combined Article 10 and 11 effort retained: {retained_total:.1%}. Low-risk cases exclude these tasks.")
     with right:
-        dd = persistent_control(st.selectbox, "Existing due diligence", list(DD_OPTIONS), key=f"dd:{company}")
-        settings_values["dd_setup"] = persistent_control(st.number_input,
-            "Existing-DD factor: set-up", min_value=0.0, value=DD_OPTIONS[dd][0],
-            step=0.05, format="%.2f", key=f"dd_setup:{company}:{dd}",
-        )
-        settings_values["dd_annual"] = persistent_control(st.number_input,
-            "Existing-DD factor: annual", min_value=0.0, value=DD_OPTIONS[dd][1],
-            step=0.05, format="%.2f", key=f"dd_annual:{company}:{dd}",
-        )
-        complexity = persistent_control(st.selectbox,
-            "Supply-chain complexity", list(COMPLEXITY_OPTIONS), index=1, key=f"complexity_choice:{company}",
-        )
-        settings_values["complexity"] = persistent_control(st.number_input,
-            "Supply-chain complexity factor", min_value=0.0, value=COMPLEXITY_OPTIONS[complexity],
-            step=0.05, format="%.2f", key=f"complexity_factor:{company}:{complexity}",
-        )
-        commodity_choice = persistent_control(st.selectbox,
-            "Commodity cost multiplier", [1.0, 1.5, 2.0],
-            format_func=lambda value: f"{value:g} × base cost", key=f"commodity_choice:{company}",
-        )
-        settings_values["commodity"] = persistent_control(st.number_input,
-            "Commodity factor", min_value=0.0, value=commodity_choice,
-            step=0.1, format="%.2f", key=f"commodity_factor:{company}:{commodity_choice}",
-        )
+        if scenario_id == "custom":
+            dd = persistent_control(st.selectbox, "Existing due diligence", list(DD_OPTIONS), key=f"dd:{company}")
+            settings_values["dd_setup"] = persistent_control(st.number_input,
+                "Existing-DD factor: set-up", min_value=0.0, value=DD_OPTIONS[dd][0],
+                step=0.05, format="%.2f", key=f"dd_setup:{company}:{dd}",
+            )
+            settings_values["dd_annual"] = persistent_control(st.number_input,
+                "Existing-DD factor: annual", min_value=0.0, value=DD_OPTIONS[dd][1],
+                step=0.05, format="%.2f", key=f"dd_annual:{company}:{dd}",
+            )
+            complexity = persistent_control(st.selectbox,
+                "Supply-chain complexity", list(COMPLEXITY_OPTIONS), index=1, key=f"complexity_choice:{company}",
+            )
+            settings_values["complexity"] = persistent_control(st.number_input,
+                "Supply-chain complexity factor", min_value=0.0, value=COMPLEXITY_OPTIONS[complexity],
+                step=0.05, format="%.2f", key=f"complexity_factor:{company}:{complexity}",
+            )
+            commodity_choice = persistent_control(st.selectbox,
+                "Commodity cost multiplier", [1.0, 1.5, 2.0],
+                format_func=lambda value: f"{value:g} × base cost", key=f"commodity_choice:{company}",
+            )
+            settings_values["commodity"] = persistent_control(st.number_input,
+                "Commodity factor", min_value=0.0, value=commodity_choice,
+                step=0.1, format="%.2f", key=f"commodity_factor:{company}:{commodity_choice}",
+            )
+        else:
+            active_factors = apply_scenario(Settings(**settings_values), scenario_id)
+            st.write(f"**{DISPLAY_SCENARIOS[scenario_id]} operator factors**")
+            st.write(f"Existing DD: {active_factors.dd_setup:g} set-up / {active_factors.dd_annual:g} annual")
+            st.write(f"Supply-chain complexity: {active_factors.complexity:g}")
+            st.write(f"Commodity factor: {active_factors.commodity:g}")
 
-elif is_primary:
+elif is_primary and not is_working_base:
     primary_columns = st.columns(2)
     with primary_columns[0]:
         settings_values["primary_complexity"] = persistent_control(st.number_input,
@@ -330,12 +395,6 @@ elif is_downstream:
             )
     st.caption("Other downstream tasks remain fixed. Existing-DD and commodity multipliers are 1.")
 
-settings_values["year3_efficiency"] = persistent_control(st.number_input,
-    "Annual efficiency reduction from year 3 (%)", min_value=0.0,
-    max_value=100.0, value=10.0, step=1.0, key="year3_efficiency_percent",
-    help="Applied once. A 10% reduction retains 90% of the annual cost from year 3 onwards.",
-) / 100.0
-
 st.header("Daily rates")
 st.caption("Defaults use ASHE 2026 annual pay for all employees × 1.22 / 220 working days, plus an £800 external-consultant day rate. Rates display two decimals; calculations retain full precision.")
 rate_columns = st.columns(3)
@@ -360,15 +419,31 @@ tasks = get_tasks(company)
 task_days = render_task_inputs(company, tasks, period)
 
 try:
-    settings = Settings(**settings_values)
+    model_inputs = Settings(**settings_values)
+    settings = apply_scenario(model_inputs, scenario_id)
+    reference = workbook_reference(scenario_id, company, size, settings.risk)
     result = calculate(settings, day_rates=day_rates, task_days=task_days)
 except ValueError as error:
     st.error(str(error))
     st.stop()
 
 st.header("Cost results")
+st.write(f"**Active scenario: {DISPLAY_SCENARIOS[scenario_id]} · {COMPANY_GROUPS[company]} · {size}**")
+if reference["sheet"]:
+    source_labels = [("Set-up", "setup"), ("Annual", "annual"), ("Year 3", "annual_year3"), ("Combined total", "total")]
+    source_cells = "; ".join(f"{label}: {reference[field]}" for label, field in source_labels if reference[field])
+    st.caption(f"Excel — {reference['sheet']}: {source_cells}")
+    st.caption("These are the corresponding Excel formula cells. Compare using the same task days, rates and shared assumptions; edited inputs change the result.")
+elif scenario_id == "custom":
+    st.caption("Custom assumptions have no single predefined scenario row in Excel.")
+else:
+    st.caption("There is no applicable Working_table base for this company and risk selection.")
+if settings.year3_efficiency is None:
+    st.caption("Annual cost from year 3 is N/A for this selection, as in the workbook.")
 if not result.eligible:
     st.info(result.reason)
+    if is_primary and is_named_scenario:
+        st.info("For the simplified primary-operator case, select Scenario 2 or Defra 1, 2 or 3 (low risk).")
 elif result.missing_inputs:
     st.info("Some required task estimates are still pending. Complete them, or enter 0 where no work is required, to calculate the affected totals.")
     with st.expander("Inputs still to complete"):
@@ -381,7 +456,8 @@ for column, label, value in zip(
     ["Set-up cost", "Annual cost", "Annual cost from year 3", "Set-up + one annual cost"],
     [result.setup, result.annual, result.annual_year3, result.total],
 ):
-    column.metric(label, money(value, eligible=result.eligible))
+    applicable = result.eligible and not (label == "Annual cost from year 3" and settings.year3_efficiency is None)
+    column.metric(label, money(value, eligible=applicable))
 st.caption("The combined total includes set-up and one annual cost. It is not a three-year total.")
 
 with st.expander("Costs before scenario factors and applied factors"):
@@ -424,35 +500,16 @@ if result.eligible and not shown_details.empty:
             st.caption("The selected period has zero cost.")
 
 st.header("Download results")
-csv_report = create_report_csv(settings, result, day_rates)
+csv_report = create_report_csv(settings, result, day_rates, scenario_id, reference)
 st.download_button(
     "Download CSV report", data=csv_report.encode("utf-8-sig"),
-    file_name=f"eudr_phase2_{company}_{date.today():%Y%m%d}.csv", mime="text/csv", key="download_current",
+    file_name=f"eudr_phase2_{scenario_id}_{company}_{date.today():%Y%m%d}.csv", mime="text/csv", key="download_current",
 )
 
 with st.expander("Compare the three scenarios and Defra cases"):
     st.caption("These are the workbook's three comparison scenarios and six Defra cases. All saved task edits, size factors, Phase 2 controls, daily rates and both downstream groups' volumes are included. The two operator groups share task days and Phase 2 controls.")
-    st.caption("The three comparison scenarios retain their own existing-DD, complexity and commodity assumptions. The second includes a 10% year-3 reduction. The Defra cases use the factors below and the year-3 reduction entered above.")
-    defra_columns = st.columns(3)
-    with defra_columns[0]:
-        defra_dd_setup = persistent_control(st.number_input,
-            "Defra existing-DD factor: set-up", min_value=0.0, value=0.75,
-            step=0.05, format="%.2f", key="defra_dd_setup",
-        )
-    with defra_columns[1]:
-        defra_dd_annual = persistent_control(st.number_input,
-            "Defra existing-DD factor: annual", min_value=0.0, value=0.75,
-            step=0.05, format="%.2f", key="defra_dd_annual",
-        )
-    with defra_columns[2]:
-        defra_complexity = persistent_control(st.number_input,
-            "Defra operator complexity factor", min_value=0.0, value=1.0,
-            step=0.05, format="%.2f", key="defra_complexity",
-        )
-    comparison_settings = replace(
-        settings, **shared_controls(), defra_dd_setup=defra_dd_setup, defra_dd_annual=defra_dd_annual,
-        defra_complexity=defra_complexity,
-    )
+    st.caption("The three comparison scenarios retain their own existing-DD, complexity and commodity assumptions. The second includes a 10% year-3 reduction. The Defra cases use the shared assumptions at the top of this page.")
+    comparison_settings = model_inputs
     all_task_days = {}
     for group in COMPANY_GROUPS:
         all_task_days.update(get_company_task_inputs(group, get_tasks(group)))
@@ -475,6 +532,13 @@ with st.expander("Compare the three scenarios and Defra cases"):
             company_settings=company_settings, size_factors=shared_sizes,
         ))
         scenario_output = scenarios.drop(columns=["case_id", "company"], errors="ignore")
+        scenario_output["Scenario"] = scenarios["case_id"].map(SCENARIO_LABELS)
+        scenario_output["Excel cells"] = [
+            f"{ref['setup']}:{ref['total']}" for ref in (
+                workbook_reference(row["case_id"], row["company"], row["Size"])
+                for row in scenarios.to_dict("records")
+            )
+        ]
         st.dataframe(
             scenario_output, use_container_width=True, hide_index=True,
             column_config={

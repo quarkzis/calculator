@@ -55,8 +55,15 @@ source code and packaged model inputs.
 
 ## Using the calculator
 
-1. Choose one of the five company groups and a permitted size.
-2. Set the applicable assumptions. Operators have geolocation, DDS batching,
+1. Select **Scenario 1–3** or **Defra 1–6**, using the same names as the Excel
+   scenarios tab. The app opens on **Defra 4**, large operator, so its initial
+   results correspond to `All_company_Scenarios (Phase 2)!D41:G41`.
+   Choose a company group and permitted size; the displayed source cells update.
+2. The selected scenario sets risk and operator DD, complexity and commodity
+   factors. **Custom assumptions** restores the editable scenario controls.
+   **Working-table base** is a separate option before Section 4 factors; it is
+   not a predefined row in the scenarios tab. Set the applicable shared inputs.
+   Operators have geolocation, DDS batching,
    local-laws, existing-DD, complexity and commodity controls. Primary operators
    have their own complexity and optional micro sensitivity. Downstream groups
    use supplier and receipt counts instead of the operator discounts.
@@ -68,7 +75,9 @@ source code and packaged model inputs.
    displayed after the workbook's default legality factor. Article 9 uses the
    full information workload and a separate geolocation allocation.
    Switching company, size or visible task period keeps edits in this session.
-4. Read setup, annual and year-3 costs, then download the CSV. The combined
+4. Read setup, annual and year-3 costs, then download the CSV. Scenario 1 and 3
+   show **N/A** for year 3; Scenario 2 uses 10%, while Defra uses its saved
+   year-3 assumption. Working-table base also has no year-3 result. The combined
    total is **setup plus one annual cost**, not a three-year cumulative total.
    Detailed final costs and charts include the same factors as the totals.
 5. Expand the scenario comparison to view the three comparison cases and six
@@ -79,8 +88,9 @@ source code and packaged model inputs.
    Small, Micro and Medium size factors are shared across applicable groups;
    Large remains fixed at 1. Primary complexity and the Micro/Small sensitivity
    remain active in the comparison when another group or size is selected.
-   The three comparison profiles keep their specified DD, complexity and
-   commodity assumptions; the main result uses the current company's choices.
+   The same scenario definition drives the main result and comparison table.
+   The main CSV records the selected scenario and corresponding Excel cells.
+   Matching an edited workbook requires the same task days, rates and controls.
 
 ## Defaults and model rules
 
@@ -113,8 +123,14 @@ source code and packaged model inputs.
   primary complexity 0.75 and a 10% reduction from year 3. The comparison
   scenarios preserve their separate workbook factors and year-3 conventions.
 
-At the delivered defaults, a large standard/high-risk operator costs
-**£78,781.97 setup and £33,944.00 annually**, before additional scenario factors.
+At the delivered defaults, **Defra 4 / Large operator** costs **£59,086.48 setup,
+£25,458.00 annually, £22,912.20 from year 3 and £84,544.47 setup plus one annual
+cost**, matching cells D41:G41 in the Phase 2 scenarios tab.
+
+The separate Working-table base remains **£78,781.97 setup and £33,944.00
+annually**, before Section 4 factors. Batching and legality are already included
+in that annual figure. These base amounts are in Working_table I17/I27, not in
+the scenarios tab.
 
 ## Source and verification
 

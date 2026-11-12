@@ -15,8 +15,8 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKBOOK = json.loads((ROOT / "tests/fixtures/phase2_workbook.json").read_text(encoding="utf-8"))
 
 
-@pytest.fixture
-def app(monkeypatch):
+def make_app(monkeypatch):
+    """Open the real default UI with a synthetic credential and capture CSVs."""
     downloads = {}
     original = st.download_button
 
@@ -35,6 +35,16 @@ def app(monkeypatch):
     assert not at.exception
     at.text_input(key="_access_password").set_value("Contraseña para pruebas 🔒")
     at.button(key="_access_submit").click().run()
+    assert not at.exception
+    return at, downloads
+
+
+@pytest.fixture
+def app(monkeypatch):
+    # These regression workflows exercise freely editable assumptions. Named
+    # workbook scenarios and the new default are covered in test_app_scenarios.
+    at, downloads = make_app(monkeypatch)
+    at.selectbox(key="scenario_id").set_value("custom").run()
     assert not at.exception
     return at, downloads
 
@@ -171,11 +181,11 @@ def test_defra_controls_change_comparison_cases_without_changing_current_cost(ap
     assert float(exported_settings["defra_complexity"]) == 1.25
     table = at.dataframe[-1].value
     operator = table.loc[(table["Company"] == "Operator (large / medium)") & (table["Size"] == "Large")]
-    defra = operator.loc[operator["Scenario"] == "Defra low risk, commodity factor 1"].iloc[0]
+    defra = operator.loc[operator["Scenario"] == "Defra 1"].iloc[0]
     working = WORKBOOK["expected_working_totals"]
     assert defra["Setup (£)"] == pytest.approx(working["operator_low_setup"]["value"] * 0.5 * 1.25)
     assert defra["Annual (£)"] == pytest.approx(working["operator_low_ongoing"]["value"] * 0.6 * 1.25)
-    comparison = operator.loc[operator["Scenario"] == "Comparison 1"].iloc[0]
+    comparison = operator.loc[operator["Scenario"] == "Scenario 1"].iloc[0]
     expected = next(case["expected"] for case in WORKBOOK["scenario_cases"] if case["id"] == "comparison_1__operator_large_medium__large")
     assert comparison["Setup (£)"] == pytest.approx(expected["setup"])
     assert comparison["Annual (£)"] == pytest.approx(expected["ongoing"])
