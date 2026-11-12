@@ -60,6 +60,19 @@ def test_default_screen_is_defra_4_and_identifies_its_excel_cells(workbook_app):
     visible = " ".join(item.value for kind in (at.caption, at.markdown, at.info) for item in kind)
     assert "Defra 4" in visible
     assert "D41" in visible and "E41" in visible
+
+
+def test_cleared_scenario_or_company_prompts_for_selection_and_recovers(workbook_app):
+    at, downloads = workbook_app
+    at.run()
+    for key, original in (("scenario_id", "defra_4"), ("company_group", "operator_large_medium")):
+        at.selectbox(key=key).set_value(None).run()
+        assert not at.exception
+        assert not at.metric
+        assert any("Enter a value" in item.value for item in at.info)
+        at.selectbox(key=key).set_value(original).run()
+        assert_cost(at, 59086.47545454545, 25457.998205113632)
+        assert_report_matches_screen(at, downloads)
     assert_report_matches_screen(at, downloads)
 
 

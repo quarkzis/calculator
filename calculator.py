@@ -76,7 +76,7 @@ def persistent_control(widget, *args, key, shared_key=None, **kwargs):
     value = widget(*args, key=key, on_change=remember_control,
                    args=(key, saved_key), **kwargs)
     saved[saved_key] = value
-    if widget == st.number_input and value is None:
+    if widget in (st.number_input, st.selectbox) and value is None:
         st.info(f"Enter a value for {args[0]} to continue.")
         st.stop()
     return value
